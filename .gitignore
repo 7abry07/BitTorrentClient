@@ -1,0 +1,84 @@
+# Build directories
+/build/
+/build-*/
+/out/
+/bin/
+/lib/
+
+# Compiled object files
+*.o
+*.obj
+*.lo
+
+# Precompiled headers
+*.gch
+*.pch
+
+# Static and dynamic libraries
+*.a
+*.lib
+*.so
+*.so.*
+*.dylib
+*.dll
+
+# Executables
+*.exe
+*.out
+*.app
+
+# Debug / profiling files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+*.gcda
+*.gcno
+*.gcov
+*.prof
+
+# Dependency files
+*.d
+
+# CMake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+compile_commands.json
+
+# Meson
+meson-private/
+meson-logs/
+meson-info/
+builddir/
+
+# Autotools
+autom4te.cache/
+aclocal.m4
+config.log
+config.status
+configure
+depcomp
+install-sh
+missing
+ltmain.sh
+
+# IDEs and editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*.tmp
+
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Package managers / tooling
+.vcpkg_installed/
+.conan/
+
