@@ -4,6 +4,8 @@
 /out/
 /bin/
 /lib/
+/.cache/
+
 
 # Compiled object files
 *.o

@@ -1,35 +1,48 @@
+
 cmake_minimum_required(VERSION 3.16)
 
-# Project definition
 project(MyProject)
 
-# Language standards
 set(CMAKE_C_STANDARD 11)
-set(CMAKE_C_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
-# Default build type
-if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
-endif()
-
-# Export compile commands (useful for clangd)
+set(CMAKE_BUILD_TYPE Debug)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# Executable target
-add_executable(${PROJECT_NAME}
-  main.cpp
-) 
+include(FetchContent)
 
+FetchContent_Declare(
+  googletest
+  URL https://github.com/google/googletest/archive/refs/tags/v1.14.0.zip
+)
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(googletest)
+
+enable_testing()
+
+# ------------------------------
+# Production executable
+# ------------------------------
+add_executable(${PROJECT_NAME} main.cpp bencode.cpp)
+
+# ------------------------------
+# Tests executable
+# ------------------------------
+add_executable(test_bencode tests/bencodeTest.cpp bencode.cpp)
+
+target_link_libraries(test_bencode GTest::gtest_main)
+
+include(GoogleTest)
+gtest_discover_tests(test_bencode)
+
+# ------------------------------
 # Compiler warnings
+# ------------------------------
 if(MSVC)
     target_compile_options(${PROJECT_NAME} PRIVATE /W4)
+    target_compile_options(test_bencode PRIVATE /W4)
 else()
     target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic)
+    target_compile_options(test_bencode PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
-# Output directories
-set_target_properties(${PROJECT_NAME} PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin
-)
