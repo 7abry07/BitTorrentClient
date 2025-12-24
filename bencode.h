@@ -54,6 +54,7 @@ public:
   static std::expected<Value, Error> parse(std::string_view input);
 
 private:
+  static std::expected<Value, Error> internal_parse(std::string_view *input);
   static std::expected<Value::String, Error> parse_str(std::string_view *input);
   static std::expected<Value::List, Error> parse_list(std::string_view *input);
   static std::expected<Value::Dict, Error> parse_dict(std::string_view *input);

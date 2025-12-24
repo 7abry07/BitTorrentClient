@@ -39,31 +39,35 @@ Value::List &Value::getList() { return std::get<List>(this->val); }
 Value::Dict &Value::getDict() { return std::get<Dict>(this->val); }
 
 std::expected<Value, Error> Parser::parse(std::string_view input) {
-  switch (input.at(0)) {
+  return internal_parse(&input);
+}
+
+std::expected<Value, Error> Parser::internal_parse(std::string_view *input) {
+  switch (input->at(0)) {
   case 'i': {
-    auto result = parse_int(&input);
+    auto result = parse_int(input);
     return result.has_value()
                ? std::expected<Value, Error>(Value(result.value()))
                : std::unexpected<Error>(result.error());
-
-    break;
   }
 
   case 'l': {
-    auto result = parse_list(&input);
-    break;
+    auto result = parse_list(input);
+    return result.has_value()
+               ? std::expected<Value, Error>(Value(result.value()))
+               : std::unexpected<Error>(result.error());
   }
 
   case 'd': {
-    auto result = parse_dict(&input);
+    auto result = parse_dict(input);
     break;
   }
 
   default: {
-    if (!std::isdigit(input.at(0)))
+    if (!std::isdigit(input->at(0)))
       break;
 
-    auto result = parse_str(&input);
+    auto result = parse_str(input);
     return result.has_value()
                ? std::expected<Value, Error>(Value(result.value()))
                : std::unexpected<Error>(result.error());
@@ -124,7 +128,24 @@ std::expected<Value::String, Error> Parser::parse_str(std::string_view *input) {
   input->remove_prefix(len_end + 1 + str_len);
   return val;
 }
-std::expected<Value::List, Error> Parser::parse_list(std::string_view *input) {}
+std::expected<Value::List, Error> Parser::parse_list(std::string_view *input) {
+  Value::List val;
+  input->remove_prefix(1);
+
+  for (;;) {
+    auto result = internal_parse(input);
+    if (!result)
+      return std::unexpected(result.error());
+
+    val.push_back(result.value());
+
+    if (input->at(0) == 'e') {
+      input->remove_prefix(1);
+      return val;
+    }
+  }
+}
+
 std::expected<Value::Dict, Error> Parser::parse_dict(std::string_view *input) {}
 
 } // namespace BitTorrentClient::Bencode
