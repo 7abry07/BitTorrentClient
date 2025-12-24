@@ -60,6 +60,9 @@ private:
   static std::expected<Value::Dict, Error> parse_dict(std::string_view *input);
   static std::expected<Value::Integer, Error>
   parse_int(std::string_view *input);
+
+  static bool hasLeadingZeroes(std::string_view input);
+  static bool isNegativeZero(std::string_view input);
 };
 
 } // namespace BitTorrentClient::Bencode

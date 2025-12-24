@@ -80,14 +80,14 @@ std::expected<Value::Integer, Error>
 Parser::parse_int(std::string_view *input) {
   Value::Integer val;
   input->remove_prefix(1);
-
-  if (input->size() > 1 && input->at(0) == '0')
-    return std::unexpected(Error::invalidIntegerErr);
-
   std::size_t int_end = input->find('e');
 
   if (int_end == std::string::npos)
-    return std::unexpected(Error::terminatorNotFoundErr);
+    return std::unexpected(terminatorNotFoundErr);
+
+  if (hasLeadingZeroes(input->substr(0, int_end)) ||
+      isNegativeZero(input->substr(0, int_end)))
+    return std::unexpected(invalidIntegerErr);
 
   try {
     std::size_t read_bytes = 0;
@@ -128,24 +128,32 @@ std::expected<Value::String, Error> Parser::parse_str(std::string_view *input) {
   input->remove_prefix(len_end + 1 + str_len);
   return val;
 }
+
 std::expected<Value::List, Error> Parser::parse_list(std::string_view *input) {
   Value::List val;
   input->remove_prefix(1);
 
   for (;;) {
     auto result = internal_parse(input);
-    if (!result)
-      return std::unexpected(result.error());
-
-    val.push_back(result.value());
-
+    if (result) {
+      val.push_back(result.value());
+      continue;
+    }
     if (input->at(0) == 'e') {
       input->remove_prefix(1);
       return val;
     }
+    return std::unexpected(result.error());
   }
 }
 
 std::expected<Value::Dict, Error> Parser::parse_dict(std::string_view *input) {}
+
+bool Parser::hasLeadingZeroes(std::string_view input) {
+  return (input.size() > 1 && input.at(0) == '0');
+}
+bool Parser::isNegativeZero(std::string_view input) {
+  return input.size() == 2 && input.substr(0, 2) == "-0";
+}
 
 } // namespace BitTorrentClient::Bencode

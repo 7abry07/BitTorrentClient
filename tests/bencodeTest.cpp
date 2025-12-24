@@ -36,6 +36,11 @@ TEST(BencodeInteger, RejectsLeadingZero) {
   EXPECT_ERR(res, bencode_err::invalidIntegerErr);
 }
 
+TEST(BencodeInteger, RejectsNegativeZero) {
+  auto res = bencode_parser::parse("i-0e");
+  EXPECT_ERR(res, bencode_err::invalidIntegerErr);
+}
+
 // --------------------------------------------------------------------
 // STRING
 // --------------------------------------------------------------------
@@ -88,4 +93,11 @@ TEST(BencodeList, ParsesMixedList) {
   ASSERT_EQ(res->getList().size(), 2);
   ASSERT_EQ(res->getList()[0].getInt(), 32);
   ASSERT_EQ(res->getList()[1].getStr(), "spam");
+}
+
+TEST(BencodeList, ParsesEmptyList) {
+  auto res = bencode_parser::parse("le");
+  EXPECT_OK(res);
+  ASSERT_TRUE(res.value().isList());
+  ASSERT_EQ(res->getList().size(), 0);
 }
