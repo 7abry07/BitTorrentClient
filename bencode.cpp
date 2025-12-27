@@ -143,20 +143,19 @@ Parser::expected_list Parser::parse_list(std::string_view *input) {
   input->remove_prefix(1);
 
   for (;;) {
-    auto result = internal_parse(input);
     if (input->length() == 0)
       return std::unexpected(missingListTerminatorErr);
-    if (result) {
-      list_.push_back(result.value());
-      continue;
-    }
     if (input->at(0) == 'e') {
       input->remove_prefix(1);
       return list_;
     }
-    return (result.error() == maximumNestingLimitExcedeedErr)
-               ? std::unexpected(maximumNestingLimitExcedeedErr)
-               : std::unexpected(invalidListElementErr);
+
+    auto result = internal_parse(input);
+    if (!result)
+      return (result.error() == maximumNestingLimitExcedeedErr)
+                 ? std::unexpected(maximumNestingLimitExcedeedErr)
+                 : std::unexpected(invalidListElementErr);
+    list_.push_back(result.value());
   }
 }
 
