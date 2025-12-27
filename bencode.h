@@ -1,15 +1,17 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <expected>
 #include <map>
 #include <string>
+#include <unordered_map>
 #include <variant>
 #include <vector>
 
 namespace BitTorrentClient::Bencode {
 
-enum Error {
+enum err_code {
   emptyInputErr,
   invalidInputErr,
   invalidTypeEncounterErr,
@@ -31,6 +33,38 @@ enum Error {
   duplicateKeyErr,
   unorderedKeysErr,
   missingColonErr
+};
+
+class Error {
+public:
+  Error(err_code code);
+  std::string get();
+
+  err_code code;
+
+private:
+  const std::unordered_map<err_code, std::string> err_mess = {
+      {emptyInputErr, "Input is empty"},
+      {invalidInputErr, "Input is invalid"},
+      {invalidTypeEncounterErr, "Encountered invalid type"},
+      {maximumNestingLimitExcedeedErr, "Maximum nesting limit exceeded"},
+      {invalidIntegerErr, "Invalid integer encountered"},
+      {missingIntegerTerminatorErr, "Missing integer terminator"},
+      {missingListTerminatorErr, "Missing list terminator"},
+      {missingDictTerminatorErr, "Missing dictionary terminator"},
+      {lengthMismatchErr, "Length does not match expected string value"},
+      {nonDigitCharacterErr, "Non-digit character found int integer"},
+      {nonStringKeyErr, "Dictionary key is not a string"},
+      {outOfRangeIntegerErr, "Integer value out of range"},
+      {invalidStringLengthErr, "Invalid string length"},
+      {negativeStringLengthErr, "String length is negative"},
+      {signedStringLengthErr, "Signed string length encountered"},
+      {stringTooLargeErr, "String size exceeds maximum allowed"},
+      {invalidListElementErr, "Invalid element in list"},
+      {trailingInputErr, "Unexpected trailing input"},
+      {duplicateKeyErr, "Duplicate key in dictionary"},
+      {unorderedKeysErr, "Dictionary keys are not in order"},
+      {missingColonErr, "Missing colon after string length"}};
 };
 
 class Value {
@@ -84,6 +118,25 @@ private:
 
   inline static std::size_t depth = 0;
   inline static const std::uint16_t maxDepth = 256;
+};
+
+class Printer {
+
+public:
+  static std::string getFormattedValue(Value val, std::size_t space_count = 2);
+
+private:
+  static std::string getFormattedValue_internal(Value val);
+
+  static std::string formatInt(Value::Integer val);
+  static std::string formatStr(Value::String val);
+  static std::string formatList(Value::List val, bool dict_value);
+  static std::string formatDict(Value::Dict val, bool dict_value);
+  static std::string formatPair(Value::String val1, Value val2);
+
+  inline static std::string result = "";
+  inline static std::string spaces_ = "";
+  inline static std::size_t space_count_ = 2;
 };
 
 } // namespace BitTorrentClient::Bencode

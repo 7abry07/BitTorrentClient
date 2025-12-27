@@ -3,7 +3,8 @@
 #include <limits>
 
 using bencode_parser = BitTorrentClient::Bencode::Parser;
-using bencode_err = BitTorrentClient::Bencode::Error;
+using bencode_printer = BitTorrentClient::Bencode::Printer;
+using bencode_err = BitTorrentClient::Bencode::err_code;
 using bencode_val = BitTorrentClient::Bencode::Value;
 
 #define EXPECT_OK(expr) EXPECT_TRUE((expr).has_value())
@@ -11,7 +12,7 @@ using bencode_val = BitTorrentClient::Bencode::Value;
 #define EXPECT_ERR(expr, err)                                                  \
   do {                                                                         \
     ASSERT_FALSE((expr).has_value());                                          \
-    EXPECT_EQ((expr).error(), err);                                            \
+    EXPECT_EQ((expr).error().code, err);                                       \
   } while (0)
 
 // --------------------------------------------------------------------
@@ -57,6 +58,56 @@ TEST(BencodeGeneral, RejectMaxNestingExceeded) {
   }
   auto res1 = bencode_parser::parse(dict);
   EXPECT_ERR(res1, bencode_err::maximumNestingLimitExcedeedErr);
+}
+
+TEST(BencodeGeneral, CorrectPrinterFormattedValue) {
+
+  std::string val = "d4:dictd3:key5:value6:nestedli42e4:spamd3:subi-7eeee9:"
+                    "emptydictde9:emptylistle7:integeri123456789e4:listli0e3:"
+                    "fooli1ei2ei3eed5:inner6:foobaree6:neginti-98765ee";
+  std::string correctFormattedValue = R"(DICT
+{
+  dict: DICT
+  {
+    key: value
+    nested: LIST
+    [
+      42
+      spam
+      DICT
+      {
+        sub: -7
+      }
+    ]
+  }
+  emptydict: DICT
+  {
+  }
+  emptylist: LIST
+  [
+  ]
+  integer: 123456789
+  list: LIST
+  [
+    0
+    foo
+    LIST
+    [
+      1
+      2
+      3
+    ]
+    DICT
+    {
+      inner: foobar
+    }
+  ]
+  negint: -98765
+})";
+  auto res = bencode_parser::parse(val);
+
+  ASSERT_OK(res);
+  ASSERT_EQ(bencode_printer::getFormattedValue(*res, 2), correctFormattedValue);
 }
 
 // --------------------------------------------------------------------

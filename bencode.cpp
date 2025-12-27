@@ -1,10 +1,23 @@
 #include "bencode.h"
+#include <cstddef>
 #include <expected>
+#include <format>
 #include <stdexcept>
 #include <string>
 #include <variant>
 
 namespace BitTorrentClient::Bencode {
+
+// ---------------------------------------------------
+// ERROR
+// ---------------------------------------------------
+
+Error::Error(err_code code) : code(code) {}
+std::string Error::get() { return err_mess.at(code); }
+
+// ---------------------------------------------------
+// VALUE
+// ---------------------------------------------------
 
 Value::Value(ValueType val) : val(std::move(val)) {}
 
@@ -18,6 +31,9 @@ Value::String &Value::getStr() { return std::get<String>(this->val); }
 Value::List &Value::getList() { return std::get<List>(this->val); }
 Value::Dict &Value::getDict() { return std::get<Dict>(this->val); }
 
+// ---------------------------------------------------
+// PARSER
+// ---------------------------------------------------
 Parser::expected_val Parser::parse(std::string_view input) {
   depth = 0;
   auto result = internal_parse(&input);
@@ -82,7 +98,7 @@ Parser::expected_val Parser::internal_parse(std::string_view *input) {
   }
   }
   depth--;
-  return std::unexpected(Error::invalidTypeEncounterErr);
+  return std::unexpected(invalidTypeEncounterErr);
 }
 
 Parser::expected_int Parser::parse_int(std::string_view *input) {
@@ -152,7 +168,7 @@ Parser::expected_list Parser::parse_list(std::string_view *input) {
 
     auto result = internal_parse(input);
     if (!result)
-      return (result.error() == maximumNestingLimitExcedeedErr)
+      return (result.error().code == maximumNestingLimitExcedeedErr)
                  ? std::unexpected(maximumNestingLimitExcedeedErr)
                  : std::unexpected(invalidListElementErr);
     list_.push_back(result.value());
@@ -161,10 +177,9 @@ Parser::expected_list Parser::parse_list(std::string_view *input) {
 
 Parser::expected_dict Parser::parse_dict(std::string_view *input) {
   Value::Dict dict_;
-  input->remove_prefix(1);
-
   Value::String prev_key = "";
   bool first = true;
+  input->remove_prefix(1);
 
   for (;;) {
     if (input->length() == 0)
@@ -175,7 +190,6 @@ Parser::expected_dict Parser::parse_dict(std::string_view *input) {
     }
 
     auto key_result = internal_parse(input);
-
     if (!key_result)
       return std::unexpected(key_result.error());
     if (!key_result->isStr())
@@ -190,6 +204,7 @@ Parser::expected_dict Parser::parse_dict(std::string_view *input) {
     auto insert_result = dict_.emplace(key_result->getStr(), *val_result);
     if (!insert_result.second)
       return std::unexpected(duplicateKeyErr);
+
     prev_key = key_result->getStr();
     first = false;
   }
@@ -229,6 +244,93 @@ bool Parser::hasLeadingZeroes(std::string_view input) {
 }
 bool Parser::isNegativeZero(std::string_view input) {
   return input.size() >= 2 && input.substr(0, 2) == "-0";
+}
+
+// ---------------------------------------------------
+// PRINTER
+// ---------------------------------------------------
+
+std::string Printer::getFormattedValue(Value val, std::size_t space_count) {
+  space_count_ = space_count;
+  std::string formattedVal = getFormattedValue_internal(val);
+  if (!formattedVal.empty() && formattedVal.back() == '\n')
+    formattedVal.pop_back();
+  return formattedVal;
+}
+
+std::string Printer::getFormattedValue_internal(Value val) {
+  std::string result = "";
+
+  if (val.isInt())
+    result.append(formatInt(val.getInt()));
+  if (val.isStr())
+    result.append(formatStr(val.getStr()));
+  if (val.isList())
+    result.append(formatList(val.getList(), false));
+  if (val.isDict())
+    result.append(formatDict(val.getDict(), false));
+
+  return result;
+}
+
+std::string Printer::formatInt(Value::Integer val) {
+  return std::format("{}{}\n", spaces_, val);
+}
+std::string Printer::formatStr(Value::String val) {
+  return std::format("{}{}\n", spaces_, val);
+}
+
+std::string Printer::formatList(Value::List val, bool dict_value) {
+  std::string list = "";
+  std::string start = (dict_value)
+                          ? std::format("\n{}[", spaces_)
+                          : std::format("{}LIST\n{}[", spaces_, spaces_);
+  list.append(start + '\n');
+  for (std::size_t i = 0; i < space_count_; i++)
+    spaces_.append(" ");
+  for (auto items : val)
+    list.append(getFormattedValue_internal(items));
+  for (std::size_t i = 0; i < space_count_; i++)
+    spaces_.pop_back();
+  list.append(std::format("{}]\n", spaces_));
+
+  return list;
+}
+
+std::string Printer::formatDict(Value::Dict val, bool dict_value) {
+  std::string dict = "";
+  std::string start = (dict_value)
+                          ? std::format("\n{}{{", spaces_)
+                          : std::format("{}DICT\n{}{{", spaces_, spaces_);
+  dict.append(start + '\n');
+  for (std::size_t i = 0; i < space_count_; i++)
+    spaces_.append(" ");
+  for (auto [first, second] : val)
+    dict.append(formatPair(first, second));
+  for (std::size_t i = 0; i < space_count_; i++)
+    spaces_.pop_back();
+  dict.append(std::format("{}}}\n", spaces_));
+
+  return dict;
+}
+
+std::string Printer::formatPair(Value::String val1, Value val2) {
+  std::string pair = "";
+  pair.append(std::format("{}{}: ", spaces_, val1));
+
+  if (val2.isInt())
+    pair.append(std::format("{}\n", val2.getInt()));
+  if (val2.isStr())
+    pair.append(std::format("{}\n", val2.getStr()));
+  if (val2.isList()) {
+    pair.append("LIST");
+    pair.append(formatList(val2.getList(), true));
+  }
+  if (val2.isDict()) {
+    pair.append("DICT");
+    pair.append(formatDict(val2.getDict(), true));
+  }
+  return pair;
 }
 
 } // namespace BitTorrentClient::Bencode
