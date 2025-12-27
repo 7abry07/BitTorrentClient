@@ -11,7 +11,6 @@
 namespace BitTorrentClient::Bencode {
 
 enum Error {
-  parse_err,
   emptyInputErr,
   invalidIntegerErr,
   invalidTypeEncounterErr,
@@ -19,8 +18,16 @@ enum Error {
   lengthMismatchErr,
   nonDigitCharacterErr,
   nonStringKeyErr,
-  invalidInput,
-  maximumNestingLimitExcedeed
+  invalidInputErr,
+  maximumNestingLimitExcedeedErr,
+  outOfRangeIntegerErr,
+  invalidStringLengthErr,
+  negativeStringLengthErr,
+  signedStringLengthErr,
+  stringTooLargeErr,
+  invalidListElementErr,
+  trailingInputErr,
+  missingColonErr
 };
 
 class Value {
@@ -57,6 +64,7 @@ using expected_str = std::expected<Value::String, Error>;
 using expected_list = std::expected<Value::List, Error>;
 using expected_dict = std::expected<Value::Dict, Error>;
 using expected_val = std::expected<Value, Error>;
+using expected_sizet = std::expected<std::size_t, Error>;
 
 class Parser {
 public:
@@ -69,11 +77,15 @@ private:
   static expected_list parse_list(std::string_view *input);
   static expected_dict parse_dict(std::string_view *input);
 
+  static bool isValidStrType(const char c);
+
   static bool hasLeadingZeroes(std::string_view input);
   static bool isNegativeZero(std::string_view input);
 
+  inline static expected_sizet isIntegerValid(std::string_view input);
+  inline static expected_sizet isStringValid(std::string_view input);
+
   inline static std::size_t depth = 0;
-  inline static bool leftover = false;
   inline static const std::uint16_t maxDepth = 256;
 };
 

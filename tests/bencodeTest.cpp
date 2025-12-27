@@ -1,5 +1,6 @@
 #include "../bencode.h"
 #include <gtest/gtest.h>
+#include <limits>
 
 using bencode_parser = BitTorrentClient::Bencode::Parser;
 using bencode_err = BitTorrentClient::Bencode::Error;
@@ -14,10 +15,33 @@ using bencode_val = BitTorrentClient::Bencode::Value;
   } while (0)
 
 // --------------------------------------------------------------------
+// GENERAL
+// --------------------------------------------------------------------
+
+TEST(BencodeGeneral, RejectInvalidTrailingInput) {
+  auto res = bencode_parser::parse("i43ee");
+  EXPECT_ERR(res, bencode_err::trailingInputErr);
+
+  auto res1 = bencode_parser::parse("4:spamfdf");
+  EXPECT_ERR(res1, bencode_err::trailingInputErr);
+
+  auto res2 = bencode_parser::parse("lee");
+  EXPECT_ERR(res2, bencode_err::trailingInputErr);
+
+  auto res3 = bencode_parser::parse("d4:spami43eegfs");
+  EXPECT_ERR(res3, bencode_err::trailingInputErr);
+}
+
+TEST(BencodeGeneral, RejectEmptyInput) {
+  auto res = bencode_parser::parse("");
+  EXPECT_ERR(res, bencode_err::emptyInputErr);
+}
+
+// --------------------------------------------------------------------
 // INTEGER
 // --------------------------------------------------------------------
 
-TEST(BencodeInteger, ParsesPositiveInteger) {
+TEST(BencodeInteger, ParsePositiveInteger) {
   auto res = bencode_parser::parse("i42e");
   ASSERT_OK(res);
 
@@ -25,39 +49,53 @@ TEST(BencodeInteger, ParsesPositiveInteger) {
   EXPECT_EQ(res->getInt(), 42);
 }
 
-TEST(BencodeInteger, ParsesNegativeInteger) {
+TEST(BencodeInteger, ParseNegativeInteger) {
   auto res = bencode_parser::parse("i-17e");
   ASSERT_OK(res);
   ASSERT_TRUE(res->isInt());
   EXPECT_EQ(res->getInt(), -17);
 }
 
-TEST(BencodeInteger, RejectsEmptyInteger) {
+TEST(BencodeInteger, RejectEmptyInteger) {
   auto res = bencode_parser::parse("ie");
   EXPECT_ERR(res, bencode_err::invalidIntegerErr);
 }
 
-TEST(BencodeInteger, RejectsNegativeoverflowingInteger) {
-  auto res = bencode_parser::parse("i-9223372036854775809e");
-  EXPECT_ERR(res, bencode_err::invalidIntegerErr);
+TEST(BencodeInteger, ParseMaxPositiveInteger) {
+  auto res = bencode_parser::parse("i9223372036854775807e");
+  ASSERT_OK(res);
+  ASSERT_TRUE(res->isInt());
+  ASSERT_EQ(res->getInt(), std::numeric_limits<bencode_val::Integer>::max());
 }
 
-TEST(BencodeInteger, RejectsPositiveOverflowingInteger) {
+TEST(BencodeInteger, ParseMaxNegativeInteger) {
+  auto res = bencode_parser::parse("i-9223372036854775808e");
+  ASSERT_OK(res);
+  ASSERT_TRUE(res->isInt());
+  ASSERT_EQ(res->getInt(), std::numeric_limits<bencode_val::Integer>::min());
+}
+
+TEST(BencodeInteger, RejectPositiveOverflowingInteger) {
   auto res = bencode_parser::parse("i9223372036854775808e");
-  EXPECT_ERR(res, bencode_err::invalidIntegerErr);
+  EXPECT_ERR(res, bencode_err::outOfRangeIntegerErr);
 }
 
-TEST(BencodeInteger, RejectsLeadingZero) {
+TEST(BencodeInteger, RejectNegativeoverflowingInteger) {
+  auto res = bencode_parser::parse("i-9223372036854775809e");
+  EXPECT_ERR(res, bencode_err::outOfRangeIntegerErr);
+}
+
+TEST(BencodeInteger, RejectLeadingZero) {
   auto res = bencode_parser::parse("i042e");
   EXPECT_ERR(res, bencode_err::invalidIntegerErr);
 }
 
-TEST(BencodeInteger, RejectsNegativeZero) {
+TEST(BencodeInteger, RejectNegativeZero) {
   auto res = bencode_parser::parse("i-0e");
   EXPECT_ERR(res, bencode_err::invalidIntegerErr);
 }
 
-TEST(BencodeInteger, RejectsWeirdMix) {
+TEST(BencodeInteger, RejectWeirdMix) {
   auto res1 = bencode_parser::parse("i-01e");
   EXPECT_ERR(res1, bencode_err::invalidIntegerErr);
 
@@ -81,30 +119,50 @@ TEST(BencodeInteger, RejectsWeirdMix) {
 // STRING
 // --------------------------------------------------------------------
 
-TEST(BencodeString, ParsesSimpleString) {
+TEST(BencodeString, ParseSimpleString) {
   auto res = bencode_parser::parse("4:spam");
   ASSERT_OK(res);
   ASSERT_TRUE(res->isStr());
   EXPECT_EQ(res->getStr(), "spam");
 }
 
-TEST(BencodeString, ParsesEmptyString) {
+TEST(BencodeString, ParseEmptyString) {
   auto res = bencode_parser::parse("0:");
   ASSERT_OK(res);
   ASSERT_TRUE(res->isStr());
   EXPECT_EQ(res->getStr(), "");
 }
 
-TEST(BencodeString, LengthMismatchError) {
+TEST(BencodeString, RejectLengthMismatchError) {
   auto res = bencode_parser::parse("5:spam");
   EXPECT_ERR(res, bencode_err::lengthMismatchErr);
+}
+
+TEST(BencodeString, RejectNegativeLengthError) {
+  auto res = bencode_parser::parse("-1:a");
+  EXPECT_ERR(res, bencode_err::negativeStringLengthErr);
+}
+
+TEST(BencodeString, RejectOverflowingLength) {
+  auto res = bencode_parser::parse("9999999999999999999999999:");
+  EXPECT_ERR(res, bencode_err::stringTooLargeErr);
+}
+
+TEST(BencodeString, RejectSignedLengthError) {
+  auto res = bencode_parser::parse("+1:a");
+  EXPECT_ERR(res, bencode_err::signedStringLengthErr);
+}
+
+TEST(BencodeString, RejectMissingColon) {
+  auto res = bencode_parser::parse("1a");
+  EXPECT_ERR(res, bencode_err::missingColonErr);
 }
 
 // --------------------------------------------------------------------
 // LIST
 // --------------------------------------------------------------------
 
-TEST(BencodeList, ParsesListOfStrings) {
+TEST(BencodeList, ParseListOfStrings) {
   auto res = bencode_parser::parse("l3:abc4:spame");
   ASSERT_OK(res);
   ASSERT_TRUE(res->isList());
@@ -113,7 +171,7 @@ TEST(BencodeList, ParsesListOfStrings) {
   ASSERT_EQ(res->getList()[1].getStr(), "spam");
 }
 
-TEST(BencodeList, ParsesListOfIntegers) {
+TEST(BencodeList, ParseListOfIntegers) {
   auto res = bencode_parser::parse("li32ei45ee");
   ASSERT_OK(res);
   ASSERT_TRUE(res->isList());
@@ -122,7 +180,7 @@ TEST(BencodeList, ParsesListOfIntegers) {
   ASSERT_EQ(res->getList()[1].getInt(), 45);
 }
 
-TEST(BencodeList, ParsesMixedList) {
+TEST(BencodeList, ParseMixedList) {
   auto res = bencode_parser::parse("li32e4:spame");
   ASSERT_OK(res);
   ASSERT_TRUE(res->isList());
@@ -131,14 +189,14 @@ TEST(BencodeList, ParsesMixedList) {
   ASSERT_EQ(res->getList()[1].getStr(), "spam");
 }
 
-TEST(BencodeList, ParsesEmptyList) {
+TEST(BencodeList, ParseEmptyList) {
   auto res = bencode_parser::parse("le");
   ASSERT_OK(res);
   ASSERT_TRUE(res->isList());
   ASSERT_EQ(res->getList().size(), 0);
 }
 
-TEST(BencodeList, RejectsMaxNestingExceeded) {
+TEST(BencodeList, RejectMaxNestingExceeded) {
   std::string str;
   for (int i = 0; i < 512; i++) {
     if (i <= 255)
@@ -147,19 +205,26 @@ TEST(BencodeList, RejectsMaxNestingExceeded) {
       str.push_back('e');
   }
   auto res = bencode_parser::parse(str);
-  EXPECT_ERR(res, bencode_err::maximumNestingLimitExcedeed);
+  EXPECT_ERR(res, bencode_err::maximumNestingLimitExcedeedErr);
 }
 
-TEST(BencodeList, RejectsMissingTerminator) {
+TEST(BencodeList, RejectMissingTerminator) {
   auto res = bencode_parser::parse("lle");
   EXPECT_ERR(res, bencode_err::terminatorNotFoundErr);
+}
+
+TEST(BencodeList, RejectExtraTerminator) {}
+
+TEST(BencodeList, RejectInvalidElement) {
+  auto res = bencode_parser::parse("lxe");
+  EXPECT_ERR(res, bencode_err::invalidListElementErr);
 }
 
 // --------------------------------------------------------------------
 // DICT
 // --------------------------------------------------------------------
 
-TEST(BencodeDict, parsesSimpleDict) {
+TEST(BencodeDict, ParseSimpleDict) {
   auto res = bencode_parser::parse("d4:spam3:abc5:seveni43ee");
   ASSERT_OK(res);
   ASSERT_TRUE(res->isDict());

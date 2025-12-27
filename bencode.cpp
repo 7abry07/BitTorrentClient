@@ -1,9 +1,8 @@
 #include "bencode.h"
 #include <cctype>
-#include <exception>
 #include <expected>
 #include <optional>
-#include <print>
+#include <stdexcept>
 #include <string>
 #include <variant>
 
@@ -39,80 +38,54 @@ Value::Dict &Value::getDict() { return std::get<Dict>(this->val); }
 
 expected_val Parser::parse(std::string_view input) {
   depth = 0;
-  leftover = 0;
+
   auto result = internal_parse(&input);
-  depth = 0;
-  leftover = 0;
+  if (result && !input.empty())
+    return std::unexpected(trailingInputErr);
   return result;
 }
 
 expected_val Parser::internal_parse(std::string_view *input) {
-
   if (input->empty())
     return std::unexpected(emptyInputErr);
+
+  depth++;
+  if (depth == maxDepth)
+    return std::unexpected(maximumNestingLimitExcedeedErr);
+
   switch (input->at(0)) {
+
   case 'i': {
-    depth++;
-    if (depth == maxDepth)
-      return std::unexpected(maximumNestingLimitExcedeed);
-
     auto result = parse_int(input);
-    if (leftover && depth == 1)
-      return std::unexpected(invalidInput);
-
     depth--;
-
     return result.has_value()
                ? std::expected<Value, Error>(Value(result.value()))
                : std::unexpected<Error>(result.error());
   }
 
   case 'l': {
-    depth++;
-    if (depth == maxDepth)
-      return std::unexpected(maximumNestingLimitExcedeed);
-
     auto result = parse_list(input);
-    if (leftover && depth == 1)
-      return std::unexpected(invalidInput);
-
     depth--;
-
     return result.has_value()
                ? std::expected<Value, Error>(Value(result.value()))
                : std::unexpected<Error>(result.error());
   }
 
   case 'd': {
-    depth++;
-    if (depth == maxDepth)
-      return std::unexpected(maximumNestingLimitExcedeed);
-
     auto result = parse_dict(input);
-    if (leftover && depth == 1)
-      return std::unexpected(invalidInput);
-
     depth--;
-
     return result.has_value()
                ? std::expected<Value, Error>(Value(result.value()))
                : std::unexpected<Error>(result.error());
   }
 
   default: {
-    if (!std::isdigit(input->at(0)))
+    if (!isValidStrType(input->at(0))) {
+      depth--;
       return std::unexpected(Error::invalidTypeEncounterErr);
-
-    depth++;
-    if (depth == maxDepth)
-      return std::unexpected(maximumNestingLimitExcedeed);
-
+    }
     auto result = parse_str(input);
-    if (leftover && depth == 1)
-      return std::unexpected(invalidInput);
-
     depth--;
-
     return result.has_value()
                ? std::expected<Value, Error>(Value(result.value()))
                : std::unexpected<Error>(result.error());
@@ -123,56 +96,53 @@ expected_val Parser::internal_parse(std::string_view *input) {
 expected_int Parser::parse_int(std::string_view *input) {
   Value::Integer int_;
   input->remove_prefix(1);
-  std::size_t int_end = input->find('e');
-
-  if (int_end == std::string::npos)
-    return std::unexpected(terminatorNotFoundErr);
-  if (hasLeadingZeroes(input->substr(0, int_end)) ||
-      isNegativeZero(input->substr(0, int_end)))
-    return std::unexpected(invalidIntegerErr);
-  if (input->at(0) == '+')
-    return std::unexpected(invalidIntegerErr);
+  auto int_end = isIntegerValid(*input);
+  if (!int_end)
+    return std::unexpected(int_end.error());
 
   try {
 
     std::size_t read_bytes = 0;
     int_ = std::stoll(std::string(*input), &read_bytes);
-    if (read_bytes < int_end)
+    if (read_bytes < *int_end)
       return std::unexpected(invalidIntegerErr);
 
-  } catch (std::exception &e) {
+  } catch (std::invalid_argument &e) {
     return std::unexpected(invalidIntegerErr);
+  } catch (std::out_of_range &e) {
+    return std::unexpected(outOfRangeIntegerErr);
   }
 
-  input->remove_prefix(int_end + 1);
-  leftover = !(input->length() == 0);
+  input->remove_prefix(*int_end + 1);
   return int_;
 }
 
 expected_str Parser::parse_str(std::string_view *input) {
   Value::String str_;
   std::size_t str_len;
-  std::size_t len_end = input->find(':');
-
-  if (len_end == std::string::npos)
-    return std::unexpected(terminatorNotFoundErr);
+  auto len_end = isStringValid(*input);
+  if (!len_end)
+    return std::unexpected(len_end.error());
 
   try {
+
     std::size_t read_bytes = 0;
     str_len = std::stoll(std::string(*input), &read_bytes);
-    if (read_bytes < len_end)
-      return std::unexpected(parse_err);
-  } catch (std::exception &e) {
-    return std::unexpected(parse_err);
+    if (read_bytes < *len_end)
+      return std::unexpected(invalidStringLengthErr);
+
+  } catch (std::invalid_argument &e) {
+    return std::unexpected(invalidStringLengthErr);
+  } catch (std::out_of_range &e) {
+    return std::unexpected(stringTooLargeErr);
   }
 
-  std::string_view str = input->substr(len_end + 1, str_len);
+  std::string_view str = input->substr(*len_end + 1, str_len);
   if (str.length() < str_len)
     return std::unexpected(lengthMismatchErr);
 
-  str_.append(input->substr(len_end + 1, str_len));
-  input->remove_prefix(len_end + 1 + str_len);
-  leftover = !(input->length() == 0);
+  str_.append(input->substr(*len_end + 1, str_len));
+  input->remove_prefix(*len_end + 1 + str_len);
   return str_;
 }
 
@@ -191,10 +161,11 @@ expected_list Parser::parse_list(std::string_view *input) {
     }
     if (input->at(0) == 'e') {
       input->remove_prefix(1);
-      leftover = !(input->length() == 0);
       return list_;
     }
-    return std::unexpected(result.error());
+    return (result.error() == maximumNestingLimitExcedeedErr)
+               ? std::unexpected(result.error())
+               : std::unexpected(invalidListElementErr);
   }
 }
 
@@ -205,7 +176,6 @@ expected_dict Parser::parse_dict(std::string_view *input) {
   for (;;) {
     if (input->at(0) == 'e') {
       input->remove_prefix(1);
-      leftover = !(input->length() == 0);
       return dict_;
     }
 
@@ -224,11 +194,44 @@ expected_dict Parser::parse_dict(std::string_view *input) {
   }
 }
 
+expected_sizet Parser::isIntegerValid(std::string_view input) {
+  std::size_t int_end = input.find('e');
+
+  if (int_end == std::string::npos)
+    return std::unexpected(terminatorNotFoundErr);
+  if (hasLeadingZeroes(input.substr(0, int_end)) ||
+      isNegativeZero(input.substr(0, int_end)))
+    return std::unexpected(invalidIntegerErr);
+  if (input.at(0) == '+')
+    return std::unexpected(invalidIntegerErr);
+
+  return int_end;
+}
+
+expected_sizet Parser::isStringValid(std::string_view input) {
+  std::size_t len_end = input.find(':');
+
+  if (len_end == std::string::npos)
+    return std::unexpected(missingColonErr);
+  if (hasLeadingZeroes(input.substr(0, len_end)))
+    return std::unexpected(invalidStringLengthErr);
+  if (input.at(0) == '-')
+    return std::unexpected(negativeStringLengthErr);
+  if (input.at(0) == '+')
+    return std::unexpected(signedStringLengthErr);
+
+  return len_end;
+}
+
 bool Parser::hasLeadingZeroes(std::string_view input) {
   return (input.size() > 1 && input.at(0) == '0');
 }
 bool Parser::isNegativeZero(std::string_view input) {
   return input.size() >= 2 && input.substr(0, 2) == "-0";
+}
+
+bool Parser::isValidStrType(const char c) {
+  return (std::isdigit(c) || c == '-' || c == '+');
 }
 
 } // namespace BitTorrentClient::Bencode
