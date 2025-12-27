@@ -106,7 +106,7 @@ TEST(BencodeInteger, RejectWeirdMix) {
   EXPECT_ERR(res3, bencode_err::invalidIntegerErr);
 
   auto res4 = bencode_parser::parse("i1");
-  EXPECT_ERR(res4, bencode_err::terminatorNotFoundErr);
+  EXPECT_ERR(res4, bencode_err::missingIntegerTerminatorErr);
 
   auto res5 = bencode_parser::parse("i+1e");
   EXPECT_ERR(res5, bencode_err::invalidIntegerErr);
@@ -198,8 +198,8 @@ TEST(BencodeList, ParseEmptyList) {
 
 TEST(BencodeList, RejectMaxNestingExceeded) {
   std::string str;
-  for (int i = 0; i < 512; i++) {
-    if (i <= 255)
+  for (int i = 0; i < 1000; i++) {
+    if (i <= 499)
       str.push_back('l');
     else
       str.push_back('e');
@@ -210,10 +210,8 @@ TEST(BencodeList, RejectMaxNestingExceeded) {
 
 TEST(BencodeList, RejectMissingTerminator) {
   auto res = bencode_parser::parse("lle");
-  EXPECT_ERR(res, bencode_err::terminatorNotFoundErr);
+  EXPECT_ERR(res, bencode_err::missingListTerminatorErr);
 }
-
-TEST(BencodeList, RejectExtraTerminator) {}
 
 TEST(BencodeList, RejectInvalidElement) {
   auto res = bencode_parser::parse("lxe");
@@ -236,9 +234,24 @@ TEST(BencodeDict, ParseSimpleDict) {
   ASSERT_EQ(res->getDict().at("seven").getInt(), 43);
 }
 
-TEST(BencodeDict, parsesEmptyDict) {
+TEST(BencodeDict, ParseEmptyDict) {
   auto res = bencode_parser::parse("de");
   ASSERT_OK(res);
   ASSERT_TRUE(res->isDict());
   ASSERT_TRUE(res->getDict().empty());
+}
+
+TEST(BencodeDict, RejectMissingTerminator) {
+  auto res = bencode_parser::parse("d");
+  EXPECT_ERR(res, bencode_err::missingDictTerminatorErr);
+}
+
+TEST(BencodeDict, RejectNonStringKey) {
+  auto res = bencode_parser::parse("di34e4:spame");
+  EXPECT_ERR(res, bencode_err::nonStringKeyErr);
+}
+
+TEST(BencodeDict, RejectDuplicateKey) {
+  auto res = bencode_parser::parse("d4:spami43e4:spami56ee");
+  EXPECT_ERR(res, bencode_err::duplicateKeyErr);
 }

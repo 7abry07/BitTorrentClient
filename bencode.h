@@ -3,7 +3,6 @@
 #include <cstdint>
 #include <expected>
 #include <map>
-#include <optional>
 #include <string>
 #include <variant>
 #include <vector>
@@ -12,14 +11,16 @@ namespace BitTorrentClient::Bencode {
 
 enum Error {
   emptyInputErr,
-  invalidIntegerErr,
+  invalidInputErr,
   invalidTypeEncounterErr,
-  terminatorNotFoundErr,
+  maximumNestingLimitExcedeedErr,
+  invalidIntegerErr,
+  missingIntegerTerminatorErr,
+  missingListTerminatorErr,
+  missingDictTerminatorErr,
   lengthMismatchErr,
   nonDigitCharacterErr,
   nonStringKeyErr,
-  invalidInputErr,
-  maximumNestingLimitExcedeedErr,
   outOfRangeIntegerErr,
   invalidStringLengthErr,
   negativeStringLengthErr,
@@ -27,6 +28,7 @@ enum Error {
   stringTooLargeErr,
   invalidListElementErr,
   trailingInputErr,
+  duplicateKeyErr,
   missingColonErr
 };
 
@@ -45,11 +47,6 @@ public:
   bool isList();
   bool isDict();
 
-  std::optional<Integer> getSafeInt();
-  std::optional<String> getSafeStr();
-  List *getSafeList();
-  Dict *getSafeDict();
-
   Integer &getInt();
   String &getStr();
   List &getList();
@@ -59,25 +56,24 @@ private:
   ValueType val;
 };
 
-using expected_int = std::expected<Value::Integer, Error>;
-using expected_str = std::expected<Value::String, Error>;
-using expected_list = std::expected<Value::List, Error>;
-using expected_dict = std::expected<Value::Dict, Error>;
-using expected_val = std::expected<Value, Error>;
-using expected_sizet = std::expected<std::size_t, Error>;
-
 class Parser {
+
 public:
-  static expected_val parse(std::string_view input);
+  static std::expected<Value, Error> parse(std::string_view input);
 
 private:
+  using expected_int = std::expected<Value::Integer, Error>;
+  using expected_str = std::expected<Value::String, Error>;
+  using expected_list = std::expected<Value::List, Error>;
+  using expected_dict = std::expected<Value::Dict, Error>;
+  using expected_val = std::expected<Value, Error>;
+  using expected_sizet = std::expected<std::size_t, Error>;
+
   static expected_val internal_parse(std::string_view *input);
   static expected_int parse_int(std::string_view *input);
   static expected_str parse_str(std::string_view *input);
   static expected_list parse_list(std::string_view *input);
   static expected_dict parse_dict(std::string_view *input);
-
-  static bool isValidStrType(const char c);
 
   static bool hasLeadingZeroes(std::string_view input);
   static bool isNegativeZero(std::string_view input);
