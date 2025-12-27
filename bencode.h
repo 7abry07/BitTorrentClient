@@ -29,6 +29,7 @@ enum Error {
   invalidListElementErr,
   trailingInputErr,
   duplicateKeyErr,
+  unorderedKeysErr,
   missingColonErr
 };
 

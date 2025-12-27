@@ -163,6 +163,9 @@ Parser::expected_dict Parser::parse_dict(std::string_view *input) {
   Value::Dict dict_;
   input->remove_prefix(1);
 
+  Value::String prev_key = "";
+  bool first = true;
+
   for (;;) {
     if (input->length() == 0)
       return std::unexpected(missingDictTerminatorErr);
@@ -177,6 +180,8 @@ Parser::expected_dict Parser::parse_dict(std::string_view *input) {
       return std::unexpected(key_result.error());
     if (!key_result->isStr())
       return std::unexpected(nonStringKeyErr);
+    if (!first && key_result->getStr() < prev_key)
+      return std::unexpected(unorderedKeysErr);
 
     auto val_result = internal_parse(input);
     if (!val_result)
@@ -185,6 +190,8 @@ Parser::expected_dict Parser::parse_dict(std::string_view *input) {
     auto insert_result = dict_.emplace(key_result->getStr(), *val_result);
     if (!insert_result.second)
       return std::unexpected(duplicateKeyErr);
+    prev_key = key_result->getStr();
+    first = false;
   }
 }
 

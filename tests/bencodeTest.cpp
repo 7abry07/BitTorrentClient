@@ -37,6 +37,28 @@ TEST(BencodeGeneral, RejectEmptyInput) {
   EXPECT_ERR(res, bencode_err::emptyInputErr);
 }
 
+TEST(BencodeGeneral, RejectMaxNestingExceeded) {
+  std::string list;
+  for (int i = 0; i < 1000; i++) {
+    if (i <= 499)
+      list.push_back('l');
+    else
+      list.push_back('e');
+  }
+  auto res = bencode_parser::parse(list);
+  EXPECT_ERR(res, bencode_err::maximumNestingLimitExcedeedErr);
+
+  std::string dict;
+  for (int i = 0; i < 1000; i++) {
+    if (i <= 499)
+      dict.push_back('d');
+    else
+      dict.push_back('e');
+  }
+  auto res1 = bencode_parser::parse(dict);
+  EXPECT_ERR(res1, bencode_err::maximumNestingLimitExcedeedErr);
+}
+
 // --------------------------------------------------------------------
 // INTEGER
 // --------------------------------------------------------------------
@@ -196,18 +218,6 @@ TEST(BencodeList, ParseEmptyList) {
   ASSERT_EQ(res->getList().size(), 0);
 }
 
-TEST(BencodeList, RejectMaxNestingExceeded) {
-  std::string str;
-  for (int i = 0; i < 1000; i++) {
-    if (i <= 499)
-      str.push_back('l');
-    else
-      str.push_back('e');
-  }
-  auto res = bencode_parser::parse(str);
-  EXPECT_ERR(res, bencode_err::maximumNestingLimitExcedeedErr);
-}
-
 TEST(BencodeList, RejectMissingTerminator) {
   auto res = bencode_parser::parse("lle");
   EXPECT_ERR(res, bencode_err::missingListTerminatorErr);
@@ -223,15 +233,15 @@ TEST(BencodeList, RejectInvalidElement) {
 // --------------------------------------------------------------------
 
 TEST(BencodeDict, ParseSimpleDict) {
-  auto res = bencode_parser::parse("d4:spam3:abc5:seveni43ee");
+  auto res = bencode_parser::parse("d4:spam3:abc5:zebrai43ee");
   ASSERT_OK(res);
   ASSERT_TRUE(res->isDict());
 
   ASSERT_TRUE(res->getDict().contains(bencode_val::String("spam")));
   ASSERT_EQ(res->getDict().at("spam").getStr(), "abc");
 
-  ASSERT_TRUE(res->getDict().contains(bencode_val::String("seven")));
-  ASSERT_EQ(res->getDict().at("seven").getInt(), 43);
+  ASSERT_TRUE(res->getDict().contains(bencode_val::String("zebra")));
+  ASSERT_EQ(res->getDict().at("zebra").getInt(), 43);
 }
 
 TEST(BencodeDict, ParseEmptyDict) {
@@ -254,4 +264,8 @@ TEST(BencodeDict, RejectNonStringKey) {
 TEST(BencodeDict, RejectDuplicateKey) {
   auto res = bencode_parser::parse("d4:spami43e4:spami56ee");
   EXPECT_ERR(res, bencode_err::duplicateKeyErr);
+}
+TEST(BencodeDict, RejectUnorderedKeys) {
+  auto res = bencode_parser::parse("d4:cccci34e4:aaaai56ee");
+  EXPECT_ERR(res, bencode_err::unorderedKeysErr);
 }
