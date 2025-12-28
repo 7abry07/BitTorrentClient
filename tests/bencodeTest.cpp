@@ -1,6 +1,7 @@
 #include "../bencode.h"
 #include <gtest/gtest.h>
 #include <limits>
+#include <string>
 
 using bencode_decoder = BitTorrentClient::Bencode::Decoder;
 using bencode_encoder = BitTorrentClient::Bencode::Encoder;
@@ -120,6 +121,17 @@ TEST(BencodeGeneral, CorrectPrinterFormattedValue) {
 
   ASSERT_OK(res);
   ASSERT_EQ(bencode_printer::getFormattedValue(*res, 2), correctFormattedValue);
+}
+
+TEST(BencodeGeneral, decodeRawBytes) {
+  std::string input("3:\xFF\x00\x61", 5);
+  auto res = bencode_decoder::decode(input);
+  ASSERT_OK(res);
+  ASSERT_TRUE(res->isStr());
+  ASSERT_EQ(res->getStr().size(), 3);
+  ASSERT_EQ(res->getStr().at(0), '\xFF');
+  ASSERT_EQ(res->getStr().at(1), '\x00');
+  ASSERT_EQ(res->getStr().at(2), 'a');
 }
 
 // --------------------------------------------------------------------
