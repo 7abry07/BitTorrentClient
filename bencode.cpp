@@ -38,19 +38,17 @@ Decoder::expected_val Decoder::decode(std::string_view input) {
   depth = 0;
   auto result = internal_decode(&input);
   if (result && !input.empty())
-    return std::unexpected(trailingInputErr);
+    return std::unexpected(Error::trailingInputErr);
   return result;
 }
 
 Decoder::expected_val Decoder::internal_decode(std::string_view *input) {
   if (++depth == maxDepth)
-    return std::unexpected(maximumNestingLimitExcedeedErr);
+    return std::unexpected(Error::maximumNestingLimitExcedeedErr);
   if (input->empty())
-    return std::unexpected(emptyInputErr);
+    return std::unexpected(Error::emptyInputErr);
 
   switch (input->at(0)) {
-
-  // STRING
   case '0':
   case '1':
   case '2':
@@ -67,38 +65,35 @@ Decoder::expected_val Decoder::internal_decode(std::string_view *input) {
     depth--;
     return result.has_value()
                ? std::expected<Value, Error>(Value(result.value()))
-               : std::unexpected<Error>(result.error());
+               : std::unexpected(Error(result.error().code));
   }
 
-  // INTEGER
   case 'i': {
     auto result = decode_int(input);
     depth--;
     return result.has_value()
                ? std::expected<Value, Error>(Value(result.value()))
-               : std::unexpected<Error>(result.error());
+               : std::unexpected(Error(result.error().code));
   }
 
-  // LIST
   case 'l': {
     auto result = decode_list(input);
     depth--;
     return result.has_value()
                ? std::expected<Value, Error>(Value(result.value()))
-               : std::unexpected<Error>(result.error());
+               : std::unexpected(Error(result.error().code));
   }
 
-  // DICT
   case 'd': {
     auto result = decode_dict(input);
     depth--;
     return result.has_value()
                ? std::expected<Value, Error>(Value(result.value()))
-               : std::unexpected<Error>(result.error());
+               : std::unexpected(Error(result.error().code));
   }
   }
   depth--;
-  return std::unexpected(invalidTypeEncounterErr);
+  return std::unexpected(Error::invalidTypeEncounterErr);
 }
 
 Decoder::expected_int Decoder::decode_int(std::string_view *input) {
@@ -106,19 +101,18 @@ Decoder::expected_int Decoder::decode_int(std::string_view *input) {
   input->remove_prefix(1);
   auto int_end = isIntegerValid(*input);
   if (!int_end)
-    return std::unexpected(int_end.error());
+    return std::unexpected(Error(int_end.error().code));
 
   try {
-
     std::size_t read_bytes = 0;
     int_ = std::stoll(std::string(*input), &read_bytes);
     if (read_bytes < *int_end)
-      return std::unexpected(invalidIntegerErr);
+      return std::unexpected(Error::invalidIntegerErr);
 
   } catch (std::invalid_argument &e) {
-    return std::unexpected(invalidIntegerErr);
+    return std::unexpected(Error::invalidIntegerErr);
   } catch (std::out_of_range &e) {
-    return std::unexpected(outOfRangeIntegerErr);
+    return std::unexpected(Error::outOfRangeIntegerErr);
   }
 
   input->remove_prefix(*int_end + 1);
@@ -130,24 +124,22 @@ Decoder::expected_str Decoder::decode_str(std::string_view *input) {
   std::size_t str_len;
   auto len_end = isStringValid(*input);
   if (!len_end)
-    return std::unexpected(len_end.error());
+    return std::unexpected(Error(len_end.error().code));
 
   try {
-
     std::size_t read_bytes = 0;
     str_len = std::stoll(std::string(*input), &read_bytes);
     if (read_bytes < *len_end)
-      return std::unexpected(invalidStringLengthErr);
-
+      return std::unexpected(Error::invalidStringLengthErr);
   } catch (std::invalid_argument &e) {
-    return std::unexpected(invalidStringLengthErr);
+    return std::unexpected(Error::invalidStringLengthErr);
   } catch (std::out_of_range &e) {
-    return std::unexpected(stringTooLargeErr);
+    return std::unexpected(Error::stringTooLargeErr);
   }
 
   std::string_view str = input->substr(*len_end + 1, str_len);
   if (str.length() < str_len)
-    return std::unexpected(lengthMismatchErr);
+    return std::unexpected(Error::lengthMismatchErr);
 
   str_.append(input->substr(*len_end + 1, str_len));
   input->remove_prefix(*len_end + 1 + str_len);
@@ -160,7 +152,7 @@ Decoder::expected_list Decoder::decode_list(std::string_view *input) {
 
   for (;;) {
     if (input->length() == 0)
-      return std::unexpected(missingListTerminatorErr);
+      return std::unexpected(Error::missingListTerminatorErr);
     if (input->at(0) == 'e') {
       input->remove_prefix(1);
       return list_;
@@ -168,9 +160,9 @@ Decoder::expected_list Decoder::decode_list(std::string_view *input) {
 
     auto result = internal_decode(input);
     if (!result)
-      return (result.error().code == maximumNestingLimitExcedeedErr)
-                 ? std::unexpected(maximumNestingLimitExcedeedErr)
-                 : std::unexpected(invalidListElementErr);
+      return (result.error().code == Error::maximumNestingLimitExcedeedErr)
+                 ? std::unexpected(Error::maximumNestingLimitExcedeedErr)
+                 : std::unexpected(Error::invalidListElementErr);
     list_.push_back(result.value());
   }
 }
@@ -183,7 +175,7 @@ Decoder::expected_dict Decoder::decode_dict(std::string_view *input) {
 
   for (;;) {
     if (input->length() == 0)
-      return std::unexpected(missingDictTerminatorErr);
+      return std::unexpected(Error::missingDictTerminatorErr);
     if (input->at(0) == 'e') {
       input->remove_prefix(1);
       return dict_;
@@ -191,19 +183,19 @@ Decoder::expected_dict Decoder::decode_dict(std::string_view *input) {
 
     auto key_result = internal_decode(input);
     if (!key_result)
-      return std::unexpected(key_result.error());
+      return std::unexpected(Error(key_result.error().code));
     if (!key_result->isStr())
-      return std::unexpected(nonStringKeyErr);
+      return std::unexpected(Error::nonStringKeyErr);
     if (!first && key_result->getStr() < prev_key)
-      return std::unexpected(unorderedKeysErr);
+      return std::unexpected(Error::unorderedKeysErr);
 
     auto val_result = internal_decode(input);
     if (!val_result)
-      return std::unexpected(val_result.error());
+      return std::unexpected(Error(val_result.error().code));
 
     auto insert_result = dict_.emplace(key_result->getStr(), *val_result);
     if (!insert_result.second)
-      return std::unexpected(duplicateKeyErr);
+      return std::unexpected(Error::duplicateKeyErr);
 
     prev_key = key_result->getStr();
     first = false;
@@ -214,12 +206,12 @@ Decoder::expected_sizet Decoder::isIntegerValid(std::string_view input) {
   std::size_t int_end = input.find('e');
 
   if (int_end == std::string::npos)
-    return std::unexpected(missingIntegerTerminatorErr);
+    return std::unexpected(Error::missingIntegerTerminatorErr);
   if (hasLeadingZeroes(input.substr(0, int_end)) ||
       isNegativeZero(input.substr(0, int_end)))
-    return std::unexpected(invalidIntegerErr);
+    return std::unexpected(Error::invalidIntegerErr);
   if (input.at(0) == '+')
-    return std::unexpected(invalidIntegerErr);
+    return std::unexpected(Error::invalidIntegerErr);
 
   return int_end;
 }
@@ -228,13 +220,13 @@ Decoder::expected_sizet Decoder::isStringValid(std::string_view input) {
   std::size_t len_end = input.find(':');
 
   if (len_end == std::string::npos)
-    return std::unexpected(missingColonErr);
+    return std::unexpected(Error::missingColonErr);
   if (hasLeadingZeroes(input.substr(0, len_end)))
-    return std::unexpected(invalidStringLengthErr);
+    return std::unexpected(Error::invalidStringLengthErr);
   if (input.at(0) == '-')
-    return std::unexpected(negativeStringLengthErr);
+    return std::unexpected(Error::negativeStringLengthErr);
   if (input.at(0) == '+')
-    return std::unexpected(signedStringLengthErr);
+    return std::unexpected(Error::signedStringLengthErr);
 
   return len_end;
 }

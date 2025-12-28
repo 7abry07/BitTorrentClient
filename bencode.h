@@ -11,32 +11,33 @@
 
 namespace BitTorrentClient::Bencode {
 
-enum err_code {
-  emptyInputErr,
-  invalidInputErr,
-  invalidTypeEncounterErr,
-  maximumNestingLimitExcedeedErr,
-  invalidIntegerErr,
-  missingIntegerTerminatorErr,
-  missingListTerminatorErr,
-  missingDictTerminatorErr,
-  lengthMismatchErr,
-  nonDigitCharacterErr,
-  nonStringKeyErr,
-  outOfRangeIntegerErr,
-  invalidStringLengthErr,
-  negativeStringLengthErr,
-  signedStringLengthErr,
-  stringTooLargeErr,
-  invalidListElementErr,
-  trailingInputErr,
-  duplicateKeyErr,
-  unorderedKeysErr,
-  missingColonErr
-};
-
 class Error {
+
 public:
+  enum err_code {
+    emptyInputErr,
+    invalidInputErr,
+    invalidTypeEncounterErr,
+    maximumNestingLimitExcedeedErr,
+    invalidIntegerErr,
+    missingIntegerTerminatorErr,
+    missingListTerminatorErr,
+    missingDictTerminatorErr,
+    lengthMismatchErr,
+    nonDigitCharacterErr,
+    nonStringKeyErr,
+    outOfRangeIntegerErr,
+    invalidStringLengthErr,
+    negativeStringLengthErr,
+    signedStringLengthErr,
+    stringTooLargeErr,
+    invalidListElementErr,
+    trailingInputErr,
+    duplicateKeyErr,
+    unorderedKeysErr,
+    missingColonErr
+  };
+
   Error(err_code code);
   std::string get();
 
@@ -68,6 +69,7 @@ private:
 };
 
 class Value {
+
 public:
   using Integer = std::int64_t;
   using String = std::string;

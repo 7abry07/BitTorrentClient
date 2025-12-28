@@ -6,7 +6,7 @@
 using bencode_decoder = BitTorrentClient::Bencode::Decoder;
 using bencode_encoder = BitTorrentClient::Bencode::Encoder;
 using bencode_printer = BitTorrentClient::Bencode::Printer;
-using bencode_err = BitTorrentClient::Bencode::err_code;
+using bencode_err = BitTorrentClient::Bencode::Error::err_code;
 using bencode_val = BitTorrentClient::Bencode::Value;
 
 #define EXPECT_OK(expr) EXPECT_TRUE((expr).has_value())
