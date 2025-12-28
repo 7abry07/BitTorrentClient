@@ -16,9 +16,8 @@ int main(int argc, char **argv) {
                       std::istreambuf_iterator<char>());
 
   auto res = btc::Bencode::Decoder::decode(content);
-  if (!res) {
+  if (!res)
     std::println("error -> {}", res.error().get());
-  } else {
-    std::println("valid");
-  }
+  else
+    std::println("no errors");
 }

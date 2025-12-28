@@ -1,4 +1,4 @@
-#include "../bencode.h"
+#include "bencode.h"
 #include <gtest/gtest.h>
 #include <limits>
 #include <string>
