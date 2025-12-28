@@ -91,10 +91,10 @@ private:
   ValueType val;
 };
 
-class Parser {
+class Decoder {
 
 public:
-  static std::expected<Value, Error> parse(std::string_view input);
+  static std::expected<Value, Error> decode(std::string_view input);
 
 private:
   using expected_int = std::expected<Value::Integer, Error>;
@@ -104,11 +104,11 @@ private:
   using expected_val = std::expected<Value, Error>;
   using expected_sizet = std::expected<std::size_t, Error>;
 
-  static expected_val internal_parse(std::string_view *input);
-  static expected_int parse_int(std::string_view *input);
-  static expected_str parse_str(std::string_view *input);
-  static expected_list parse_list(std::string_view *input);
-  static expected_dict parse_dict(std::string_view *input);
+  static expected_val internal_decode(std::string_view *input);
+  static expected_int decode_int(std::string_view *input);
+  static expected_str decode_str(std::string_view *input);
+  static expected_list decode_list(std::string_view *input);
+  static expected_dict decode_dict(std::string_view *input);
 
   static bool hasLeadingZeroes(std::string_view input);
   static bool isNegativeZero(std::string_view input);
@@ -118,6 +118,18 @@ private:
 
   inline static std::size_t depth = 0;
   inline static const std::uint16_t maxDepth = 256;
+};
+
+class Encoder {
+
+public:
+  static std::string encode(Value val);
+
+private:
+  static std::string encode_int(Value::Integer val);
+  static std::string encode_str(Value::String val);
+  static std::string encode_list(Value::List val);
+  static std::string encode_dict(Value::Dict val);
 };
 
 class Printer {

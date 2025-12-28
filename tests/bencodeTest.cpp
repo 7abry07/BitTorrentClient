@@ -2,7 +2,8 @@
 #include <gtest/gtest.h>
 #include <limits>
 
-using bencode_parser = BitTorrentClient::Bencode::Parser;
+using bencode_decoder = BitTorrentClient::Bencode::Decoder;
+using bencode_encoder = BitTorrentClient::Bencode::Encoder;
 using bencode_printer = BitTorrentClient::Bencode::Printer;
 using bencode_err = BitTorrentClient::Bencode::err_code;
 using bencode_val = BitTorrentClient::Bencode::Value;
@@ -20,21 +21,21 @@ using bencode_val = BitTorrentClient::Bencode::Value;
 // --------------------------------------------------------------------
 
 TEST(BencodeGeneral, RejectInvalidTrailingInput) {
-  auto res = bencode_parser::parse("i43ee");
+  auto res = bencode_decoder::decode("i43ee");
   EXPECT_ERR(res, bencode_err::trailingInputErr);
 
-  auto res1 = bencode_parser::parse("4:spamfdf");
+  auto res1 = bencode_decoder::decode("4:spamfdf");
   EXPECT_ERR(res1, bencode_err::trailingInputErr);
 
-  auto res2 = bencode_parser::parse("lee");
+  auto res2 = bencode_decoder::decode("lee");
   EXPECT_ERR(res2, bencode_err::trailingInputErr);
 
-  auto res3 = bencode_parser::parse("d4:spami43eegfs");
+  auto res3 = bencode_decoder::decode("d4:spami43eegfs");
   EXPECT_ERR(res3, bencode_err::trailingInputErr);
 }
 
 TEST(BencodeGeneral, RejectEmptyInput) {
-  auto res = bencode_parser::parse("");
+  auto res = bencode_decoder::decode("");
   EXPECT_ERR(res, bencode_err::emptyInputErr);
 }
 
@@ -46,7 +47,7 @@ TEST(BencodeGeneral, RejectMaxNestingExceeded) {
     else
       list.push_back('e');
   }
-  auto res = bencode_parser::parse(list);
+  auto res = bencode_decoder::decode(list);
   EXPECT_ERR(res, bencode_err::maximumNestingLimitExcedeedErr);
 
   std::string dict;
@@ -56,12 +57,23 @@ TEST(BencodeGeneral, RejectMaxNestingExceeded) {
     else
       dict.push_back('e');
   }
-  auto res1 = bencode_parser::parse(dict);
+  auto res1 = bencode_decoder::decode(dict);
   EXPECT_ERR(res1, bencode_err::maximumNestingLimitExcedeedErr);
 }
 
-TEST(BencodeGeneral, CorrectPrinterFormattedValue) {
+TEST(BencodeGeneral, DecodeEncode) {
+  std::string val = "d4:dictd3:key5:value6:nestedli42e4:spamd3:subi-7eeee9:"
+                    "emptydictde9:emptylistle7:integeri123456789e4:listli0e3:"
+                    "fooli1ei2ei3eed5:inner6:foobaree6:neginti-98765ee";
 
+  auto res = bencode_decoder::decode(val);
+  ASSERT_OK(res);
+
+  std::string encoded_val = bencode_encoder::encode(*res);
+  ASSERT_EQ(encoded_val, val);
+}
+
+TEST(BencodeGeneral, CorrectPrinterFormattedValue) {
   std::string val = "d4:dictd3:key5:value6:nestedli42e4:spamd3:subi-7eeee9:"
                     "emptydictde9:emptylistle7:integeri123456789e4:listli0e3:"
                     "fooli1ei2ei3eed5:inner6:foobaree6:neginti-98765ee";
@@ -104,7 +116,7 @@ TEST(BencodeGeneral, CorrectPrinterFormattedValue) {
   ]
   negint: -98765
 })";
-  auto res = bencode_parser::parse(val);
+  auto res = bencode_decoder::decode(val);
 
   ASSERT_OK(res);
   ASSERT_EQ(bencode_printer::getFormattedValue(*res, 2), correctFormattedValue);
@@ -115,7 +127,7 @@ TEST(BencodeGeneral, CorrectPrinterFormattedValue) {
 // --------------------------------------------------------------------
 
 TEST(BencodeInteger, ParsePositiveInteger) {
-  auto res = bencode_parser::parse("i42e");
+  auto res = bencode_decoder::decode("i42e");
   ASSERT_OK(res);
 
   ASSERT_TRUE(res->isInt());
@@ -123,68 +135,68 @@ TEST(BencodeInteger, ParsePositiveInteger) {
 }
 
 TEST(BencodeInteger, ParseNegativeInteger) {
-  auto res = bencode_parser::parse("i-17e");
+  auto res = bencode_decoder::decode("i-17e");
   ASSERT_OK(res);
   ASSERT_TRUE(res->isInt());
   EXPECT_EQ(res->getInt(), -17);
 }
 
 TEST(BencodeInteger, RejectEmptyInteger) {
-  auto res = bencode_parser::parse("ie");
+  auto res = bencode_decoder::decode("ie");
   EXPECT_ERR(res, bencode_err::invalidIntegerErr);
 }
 
 TEST(BencodeInteger, ParseMaxPositiveInteger) {
-  auto res = bencode_parser::parse("i9223372036854775807e");
+  auto res = bencode_decoder::decode("i9223372036854775807e");
   ASSERT_OK(res);
   ASSERT_TRUE(res->isInt());
   ASSERT_EQ(res->getInt(), std::numeric_limits<bencode_val::Integer>::max());
 }
 
 TEST(BencodeInteger, ParseMaxNegativeInteger) {
-  auto res = bencode_parser::parse("i-9223372036854775808e");
+  auto res = bencode_decoder::decode("i-9223372036854775808e");
   ASSERT_OK(res);
   ASSERT_TRUE(res->isInt());
   ASSERT_EQ(res->getInt(), std::numeric_limits<bencode_val::Integer>::min());
 }
 
 TEST(BencodeInteger, RejectPositiveOverflowingInteger) {
-  auto res = bencode_parser::parse("i9223372036854775808e");
+  auto res = bencode_decoder::decode("i9223372036854775808e");
   EXPECT_ERR(res, bencode_err::outOfRangeIntegerErr);
 }
 
 TEST(BencodeInteger, RejectNegativeoverflowingInteger) {
-  auto res = bencode_parser::parse("i-9223372036854775809e");
+  auto res = bencode_decoder::decode("i-9223372036854775809e");
   EXPECT_ERR(res, bencode_err::outOfRangeIntegerErr);
 }
 
 TEST(BencodeInteger, RejectLeadingZero) {
-  auto res = bencode_parser::parse("i042e");
+  auto res = bencode_decoder::decode("i042e");
   EXPECT_ERR(res, bencode_err::invalidIntegerErr);
 }
 
 TEST(BencodeInteger, RejectNegativeZero) {
-  auto res = bencode_parser::parse("i-0e");
+  auto res = bencode_decoder::decode("i-0e");
   EXPECT_ERR(res, bencode_err::invalidIntegerErr);
 }
 
 TEST(BencodeInteger, RejectWeirdMix) {
-  auto res1 = bencode_parser::parse("i-01e");
+  auto res1 = bencode_decoder::decode("i-01e");
   EXPECT_ERR(res1, bencode_err::invalidIntegerErr);
 
-  auto res2 = bencode_parser::parse("i--1e");
+  auto res2 = bencode_decoder::decode("i--1e");
   EXPECT_ERR(res2, bencode_err::invalidIntegerErr);
 
-  auto res3 = bencode_parser::parse("i1.0e");
+  auto res3 = bencode_decoder::decode("i1.0e");
   EXPECT_ERR(res3, bencode_err::invalidIntegerErr);
 
-  auto res4 = bencode_parser::parse("i1");
+  auto res4 = bencode_decoder::decode("i1");
   EXPECT_ERR(res4, bencode_err::missingIntegerTerminatorErr);
 
-  auto res5 = bencode_parser::parse("i+1e");
+  auto res5 = bencode_decoder::decode("i+1e");
   EXPECT_ERR(res5, bencode_err::invalidIntegerErr);
 
-  auto res6 = bencode_parser::parse("i e");
+  auto res6 = bencode_decoder::decode("i e");
   EXPECT_ERR(res6, bencode_err::invalidIntegerErr);
 }
 
@@ -193,41 +205,41 @@ TEST(BencodeInteger, RejectWeirdMix) {
 // --------------------------------------------------------------------
 
 TEST(BencodeString, ParseSimpleString) {
-  auto res = bencode_parser::parse("4:spam");
+  auto res = bencode_decoder::decode("4:spam");
   ASSERT_OK(res);
   ASSERT_TRUE(res->isStr());
   EXPECT_EQ(res->getStr(), "spam");
 }
 
 TEST(BencodeString, ParseEmptyString) {
-  auto res = bencode_parser::parse("0:");
+  auto res = bencode_decoder::decode("0:");
   ASSERT_OK(res);
   ASSERT_TRUE(res->isStr());
   EXPECT_EQ(res->getStr(), "");
 }
 
 TEST(BencodeString, RejectLengthMismatchError) {
-  auto res = bencode_parser::parse("5:spam");
+  auto res = bencode_decoder::decode("5:spam");
   EXPECT_ERR(res, bencode_err::lengthMismatchErr);
 }
 
 TEST(BencodeString, RejectNegativeLengthError) {
-  auto res = bencode_parser::parse("-1:a");
+  auto res = bencode_decoder::decode("-1:a");
   EXPECT_ERR(res, bencode_err::negativeStringLengthErr);
 }
 
 TEST(BencodeString, RejectOverflowingLength) {
-  auto res = bencode_parser::parse("9999999999999999999999999:");
+  auto res = bencode_decoder::decode("9999999999999999999999999:");
   EXPECT_ERR(res, bencode_err::stringTooLargeErr);
 }
 
 TEST(BencodeString, RejectSignedLengthError) {
-  auto res = bencode_parser::parse("+1:a");
+  auto res = bencode_decoder::decode("+1:a");
   EXPECT_ERR(res, bencode_err::signedStringLengthErr);
 }
 
 TEST(BencodeString, RejectMissingColon) {
-  auto res = bencode_parser::parse("1a");
+  auto res = bencode_decoder::decode("1a");
   EXPECT_ERR(res, bencode_err::missingColonErr);
 }
 
@@ -236,7 +248,7 @@ TEST(BencodeString, RejectMissingColon) {
 // --------------------------------------------------------------------
 
 TEST(BencodeList, ParseListOfStrings) {
-  auto res = bencode_parser::parse("l3:abc4:spame");
+  auto res = bencode_decoder::decode("l3:abc4:spame");
   ASSERT_OK(res);
   ASSERT_TRUE(res->isList());
   ASSERT_EQ(res->getList().size(), 2);
@@ -245,7 +257,7 @@ TEST(BencodeList, ParseListOfStrings) {
 }
 
 TEST(BencodeList, ParseListOfIntegers) {
-  auto res = bencode_parser::parse("li32ei45ee");
+  auto res = bencode_decoder::decode("li32ei45ee");
   ASSERT_OK(res);
   ASSERT_TRUE(res->isList());
   ASSERT_EQ(res->getList().size(), 2);
@@ -254,7 +266,7 @@ TEST(BencodeList, ParseListOfIntegers) {
 }
 
 TEST(BencodeList, ParseMixedList) {
-  auto res = bencode_parser::parse("li32e4:spame");
+  auto res = bencode_decoder::decode("li32e4:spame");
   ASSERT_OK(res);
   ASSERT_TRUE(res->isList());
   ASSERT_EQ(res->getList().size(), 2);
@@ -263,19 +275,19 @@ TEST(BencodeList, ParseMixedList) {
 }
 
 TEST(BencodeList, ParseEmptyList) {
-  auto res = bencode_parser::parse("le");
+  auto res = bencode_decoder::decode("le");
   ASSERT_OK(res);
   ASSERT_TRUE(res->isList());
   ASSERT_EQ(res->getList().size(), 0);
 }
 
 TEST(BencodeList, RejectMissingTerminator) {
-  auto res = bencode_parser::parse("lle");
+  auto res = bencode_decoder::decode("lle");
   EXPECT_ERR(res, bencode_err::missingListTerminatorErr);
 }
 
 TEST(BencodeList, RejectInvalidElement) {
-  auto res = bencode_parser::parse("lxe");
+  auto res = bencode_decoder::decode("lxe");
   EXPECT_ERR(res, bencode_err::invalidListElementErr);
 }
 
@@ -284,7 +296,7 @@ TEST(BencodeList, RejectInvalidElement) {
 // --------------------------------------------------------------------
 
 TEST(BencodeDict, ParseSimpleDict) {
-  auto res = bencode_parser::parse("d4:spam3:abc5:zebrai43ee");
+  auto res = bencode_decoder::decode("d4:spam3:abc5:zebrai43ee");
   ASSERT_OK(res);
   ASSERT_TRUE(res->isDict());
 
@@ -296,27 +308,28 @@ TEST(BencodeDict, ParseSimpleDict) {
 }
 
 TEST(BencodeDict, ParseEmptyDict) {
-  auto res = bencode_parser::parse("de");
+  auto res = bencode_decoder::decode("de");
   ASSERT_OK(res);
   ASSERT_TRUE(res->isDict());
   ASSERT_TRUE(res->getDict().empty());
 }
 
 TEST(BencodeDict, RejectMissingTerminator) {
-  auto res = bencode_parser::parse("d");
+  auto res = bencode_decoder::decode("d");
   EXPECT_ERR(res, bencode_err::missingDictTerminatorErr);
 }
 
 TEST(BencodeDict, RejectNonStringKey) {
-  auto res = bencode_parser::parse("di34e4:spame");
+  auto res = bencode_decoder::decode("di34e4:spame");
   EXPECT_ERR(res, bencode_err::nonStringKeyErr);
 }
 
 TEST(BencodeDict, RejectDuplicateKey) {
-  auto res = bencode_parser::parse("d4:spami43e4:spami56ee");
+  auto res = bencode_decoder::decode("d4:spami43e4:spami56ee");
   EXPECT_ERR(res, bencode_err::duplicateKeyErr);
 }
+
 TEST(BencodeDict, RejectUnorderedKeys) {
-  auto res = bencode_parser::parse("d4:cccci34e4:aaaai56ee");
+  auto res = bencode_decoder::decode("d4:cccci34e4:aaaai56ee");
   EXPECT_ERR(res, bencode_err::unorderedKeysErr);
 }

@@ -34,15 +34,15 @@ Value::Dict &Value::getDict() { return std::get<Dict>(this->val); }
 // ---------------------------------------------------
 // PARSER
 // ---------------------------------------------------
-Parser::expected_val Parser::parse(std::string_view input) {
+Decoder::expected_val Decoder::decode(std::string_view input) {
   depth = 0;
-  auto result = internal_parse(&input);
+  auto result = internal_decode(&input);
   if (result && !input.empty())
     return std::unexpected(trailingInputErr);
   return result;
 }
 
-Parser::expected_val Parser::internal_parse(std::string_view *input) {
+Decoder::expected_val Decoder::internal_decode(std::string_view *input) {
   if (++depth == maxDepth)
     return std::unexpected(maximumNestingLimitExcedeedErr);
   if (input->empty())
@@ -63,7 +63,7 @@ Parser::expected_val Parser::internal_parse(std::string_view *input) {
   case '9':
   case '+':
   case '-': {
-    auto result = parse_str(input);
+    auto result = decode_str(input);
     depth--;
     return result.has_value()
                ? std::expected<Value, Error>(Value(result.value()))
@@ -72,7 +72,7 @@ Parser::expected_val Parser::internal_parse(std::string_view *input) {
 
   // INTEGER
   case 'i': {
-    auto result = parse_int(input);
+    auto result = decode_int(input);
     depth--;
     return result.has_value()
                ? std::expected<Value, Error>(Value(result.value()))
@@ -81,7 +81,7 @@ Parser::expected_val Parser::internal_parse(std::string_view *input) {
 
   // LIST
   case 'l': {
-    auto result = parse_list(input);
+    auto result = decode_list(input);
     depth--;
     return result.has_value()
                ? std::expected<Value, Error>(Value(result.value()))
@@ -90,7 +90,7 @@ Parser::expected_val Parser::internal_parse(std::string_view *input) {
 
   // DICT
   case 'd': {
-    auto result = parse_dict(input);
+    auto result = decode_dict(input);
     depth--;
     return result.has_value()
                ? std::expected<Value, Error>(Value(result.value()))
@@ -101,7 +101,7 @@ Parser::expected_val Parser::internal_parse(std::string_view *input) {
   return std::unexpected(invalidTypeEncounterErr);
 }
 
-Parser::expected_int Parser::parse_int(std::string_view *input) {
+Decoder::expected_int Decoder::decode_int(std::string_view *input) {
   Value::Integer int_;
   input->remove_prefix(1);
   auto int_end = isIntegerValid(*input);
@@ -125,7 +125,7 @@ Parser::expected_int Parser::parse_int(std::string_view *input) {
   return int_;
 }
 
-Parser::expected_str Parser::parse_str(std::string_view *input) {
+Decoder::expected_str Decoder::decode_str(std::string_view *input) {
   Value::String str_;
   std::size_t str_len;
   auto len_end = isStringValid(*input);
@@ -154,7 +154,7 @@ Parser::expected_str Parser::parse_str(std::string_view *input) {
   return str_;
 }
 
-Parser::expected_list Parser::parse_list(std::string_view *input) {
+Decoder::expected_list Decoder::decode_list(std::string_view *input) {
   Value::List list_;
   input->remove_prefix(1);
 
@@ -166,7 +166,7 @@ Parser::expected_list Parser::parse_list(std::string_view *input) {
       return list_;
     }
 
-    auto result = internal_parse(input);
+    auto result = internal_decode(input);
     if (!result)
       return (result.error().code == maximumNestingLimitExcedeedErr)
                  ? std::unexpected(maximumNestingLimitExcedeedErr)
@@ -175,7 +175,7 @@ Parser::expected_list Parser::parse_list(std::string_view *input) {
   }
 }
 
-Parser::expected_dict Parser::parse_dict(std::string_view *input) {
+Decoder::expected_dict Decoder::decode_dict(std::string_view *input) {
   Value::Dict dict_;
   Value::String prev_key = "";
   bool first = true;
@@ -189,7 +189,7 @@ Parser::expected_dict Parser::parse_dict(std::string_view *input) {
       return dict_;
     }
 
-    auto key_result = internal_parse(input);
+    auto key_result = internal_decode(input);
     if (!key_result)
       return std::unexpected(key_result.error());
     if (!key_result->isStr())
@@ -197,7 +197,7 @@ Parser::expected_dict Parser::parse_dict(std::string_view *input) {
     if (!first && key_result->getStr() < prev_key)
       return std::unexpected(unorderedKeysErr);
 
-    auto val_result = internal_parse(input);
+    auto val_result = internal_decode(input);
     if (!val_result)
       return std::unexpected(val_result.error());
 
@@ -210,7 +210,7 @@ Parser::expected_dict Parser::parse_dict(std::string_view *input) {
   }
 }
 
-Parser::expected_sizet Parser::isIntegerValid(std::string_view input) {
+Decoder::expected_sizet Decoder::isIntegerValid(std::string_view input) {
   std::size_t int_end = input.find('e');
 
   if (int_end == std::string::npos)
@@ -224,7 +224,7 @@ Parser::expected_sizet Parser::isIntegerValid(std::string_view input) {
   return int_end;
 }
 
-Parser::expected_sizet Parser::isStringValid(std::string_view input) {
+Decoder::expected_sizet Decoder::isStringValid(std::string_view input) {
   std::size_t len_end = input.find(':');
 
   if (len_end == std::string::npos)
@@ -239,11 +239,56 @@ Parser::expected_sizet Parser::isStringValid(std::string_view input) {
   return len_end;
 }
 
-bool Parser::hasLeadingZeroes(std::string_view input) {
+bool Decoder::hasLeadingZeroes(std::string_view input) {
   return (input.size() > 1 && input.at(0) == '0');
 }
-bool Parser::isNegativeZero(std::string_view input) {
+bool Decoder::isNegativeZero(std::string_view input) {
   return input.size() >= 2 && input.substr(0, 2) == "-0";
+}
+
+// ---------------------------------------------------
+// ENCODER
+// ---------------------------------------------------
+
+std::string Encoder::encode(Value val) {
+  std::string result = "";
+
+  if (val.isInt())
+    result.append(encode_int(val.getInt()));
+  else if (val.isStr())
+    result.append(encode_str(val.getStr()));
+  else if (val.isList())
+    result.append(encode_list(val.getList()));
+  else if (val.isDict())
+    result.append(encode_dict(val.getDict()));
+
+  return result;
+}
+
+std::string Encoder::encode_int(Value::Integer val) {
+  return std::format("i{}e", val);
+}
+
+std::string Encoder::encode_str(Value::String val) {
+  return std::format("{}:{}", val.length(), val);
+}
+
+std::string Encoder::encode_list(Value::List val) {
+  std::string result = "l";
+  for (auto items : val)
+    result.append(encode(items));
+  result.append("e");
+  return result;
+}
+
+std::string Encoder::encode_dict(Value::Dict val) {
+  std::string result = "d";
+  for (auto [first, second] : val) {
+    result.append(encode_str(first));
+    result.append(encode(second));
+  }
+  result.append("e");
+  return result;
 }
 
 // ---------------------------------------------------
