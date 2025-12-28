@@ -9,7 +9,7 @@
 #include <variant>
 #include <vector>
 
-namespace BitTorrentClient::Bencode {
+namespace btc::Bencode {
 
 class Error {
 
@@ -143,23 +143,4 @@ private:
   static std::string encode_dict(Value::Dict val);
 };
 
-class Printer {
-
-public:
-  static std::string getFormattedValue(Value val, std::size_t space_count = 2);
-
-private:
-  static std::string getFormattedValue_internal(Value val);
-
-  static std::string formatInt(Value::Integer val);
-  static std::string formatStr(Value::String val);
-  static std::string formatList(Value::List val, bool dict_value);
-  static std::string formatDict(Value::Dict val, bool dict_value);
-  static std::string formatPair(Value::String val1, Value val2);
-
-  inline static std::string result = "";
-  inline static std::string spaces_ = "";
-  inline static std::size_t space_count_ = 2;
-};
-
-} // namespace BitTorrentClient::Bencode
+} // namespace btc::Bencode

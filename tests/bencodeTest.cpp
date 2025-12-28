@@ -3,11 +3,10 @@
 #include <limits>
 #include <string>
 
-using bencode_decoder = BitTorrentClient::Bencode::Decoder;
-using bencode_encoder = BitTorrentClient::Bencode::Encoder;
-using bencode_printer = BitTorrentClient::Bencode::Printer;
-using bencode_err = BitTorrentClient::Bencode::Error::err_code;
-using bencode_val = BitTorrentClient::Bencode::Value;
+using bencode_decoder = btc::Bencode::Decoder;
+using bencode_encoder = btc::Bencode::Encoder;
+using bencode_err = btc::Bencode::Error::err_code;
+using bencode_val = btc::Bencode::Value;
 
 #define EXPECT_OK(expr) EXPECT_TRUE((expr).has_value())
 #define ASSERT_OK(expr) ASSERT_TRUE((expr).has_value())
@@ -70,55 +69,6 @@ TEST(BencodeGeneral, DecodeEncode) {
 
   std::string encoded_val = bencode_encoder::encode(*res);
   ASSERT_EQ(encoded_val, val);
-}
-
-TEST(BencodeGeneral, CorrectPrinterFormattedValue) {
-  std::string val = "d4:dictd3:key5:value6:nestedli42e4:spamd3:subi-7eeee9:"
-                    "emptydictde9:emptylistle7:integeri123456789e4:listli0e3:"
-                    "fooli1ei2ei3eed5:inner6:foobaree6:neginti-98765ee";
-  std::string correctFormattedValue = R"(DICT
-{
-  dict: DICT
-  {
-    key: value
-    nested: LIST
-    [
-      42
-      spam
-      DICT
-      {
-        sub: -7
-      }
-    ]
-  }
-  emptydict: DICT
-  {
-  }
-  emptylist: LIST
-  [
-  ]
-  integer: 123456789
-  list: LIST
-  [
-    0
-    foo
-    LIST
-    [
-      1
-      2
-      3
-    ]
-    DICT
-    {
-      inner: foobar
-    }
-  ]
-  negint: -98765
-})";
-  auto res = bencode_decoder::decode(val);
-
-  ASSERT_OK(res);
-  ASSERT_EQ(bencode_printer::getFormattedValue(*res, 2), correctFormattedValue);
 }
 
 TEST(BencodeGeneral, decodeRawBytes) {

@@ -6,7 +6,7 @@
 #include <string>
 #include <variant>
 
-namespace BitTorrentClient::Bencode {
+namespace btc::Bencode {
 
 // ---------------------------------------------------
 // ERROR
@@ -32,7 +32,7 @@ Value::List &Value::getList() { return std::get<List>(this->val); }
 Value::Dict &Value::getDict() { return std::get<Dict>(this->val); }
 
 // ---------------------------------------------------
-// PARSER
+// DECODER
 // ---------------------------------------------------
 Decoder::expected_val Decoder::decode(std::string_view input) {
   depth = 0;
@@ -283,91 +283,4 @@ std::string Encoder::encode_dict(Value::Dict val) {
   return result;
 }
 
-// ---------------------------------------------------
-// PRINTER
-// ---------------------------------------------------
-
-std::string Printer::getFormattedValue(Value val, std::size_t space_count) {
-  space_count_ = space_count;
-  std::string formattedVal = getFormattedValue_internal(val);
-  if (!formattedVal.empty() && formattedVal.back() == '\n')
-    formattedVal.pop_back();
-  return formattedVal;
-}
-
-std::string Printer::getFormattedValue_internal(Value val) {
-  std::string result = "";
-
-  if (val.isInt())
-    result.append(formatInt(val.getInt()));
-  if (val.isStr())
-    result.append(formatStr(val.getStr()));
-  if (val.isList())
-    result.append(formatList(val.getList(), false));
-  if (val.isDict())
-    result.append(formatDict(val.getDict(), false));
-
-  return result;
-}
-
-std::string Printer::formatInt(Value::Integer val) {
-  return std::format("{}{}\n", spaces_, val);
-}
-std::string Printer::formatStr(Value::String val) {
-  return std::format("{}{}\n", spaces_, val);
-}
-
-std::string Printer::formatList(Value::List val, bool dict_value) {
-  std::string list = "";
-  std::string start = (dict_value)
-                          ? std::format("\n{}[", spaces_)
-                          : std::format("{}LIST\n{}[", spaces_, spaces_);
-  list.append(start + '\n');
-  for (std::size_t i = 0; i < space_count_; i++)
-    spaces_.append(" ");
-  for (auto items : val)
-    list.append(getFormattedValue_internal(items));
-  for (std::size_t i = 0; i < space_count_; i++)
-    spaces_.pop_back();
-  list.append(std::format("{}]\n", spaces_));
-
-  return list;
-}
-
-std::string Printer::formatDict(Value::Dict val, bool dict_value) {
-  std::string dict = "";
-  std::string start = (dict_value)
-                          ? std::format("\n{}{{", spaces_)
-                          : std::format("{}DICT\n{}{{", spaces_, spaces_);
-  dict.append(start + '\n');
-  for (std::size_t i = 0; i < space_count_; i++)
-    spaces_.append(" ");
-  for (auto [first, second] : val)
-    dict.append(formatPair(first, second));
-  for (std::size_t i = 0; i < space_count_; i++)
-    spaces_.pop_back();
-  dict.append(std::format("{}}}\n", spaces_));
-
-  return dict;
-}
-
-std::string Printer::formatPair(Value::String val1, Value val2) {
-  std::string pair = "";
-  pair.append(std::format("{}{}: ", spaces_, val1));
-
-  if (val2.isInt())
-    pair.append(std::format("{}\n", val2.getInt()));
-  if (val2.isStr())
-    pair.append(std::format("{}\n", val2.getStr()));
-  if (val2.isList()) {
-    pair.append("LIST");
-    pair.append(formatList(val2.getList(), true));
-  }
-  if (val2.isDict()) {
-    pair.append("DICT");
-    pair.append(formatDict(val2.getDict(), true));
-  }
-  return pair;
-}
-
-} // namespace BitTorrentClient::Bencode
+} // namespace btc::Bencode
