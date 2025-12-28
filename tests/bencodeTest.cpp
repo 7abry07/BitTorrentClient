@@ -12,10 +12,8 @@ using bencode_val = BitTorrentClient::Bencode::Value;
 #define EXPECT_OK(expr) EXPECT_TRUE((expr).has_value())
 #define ASSERT_OK(expr) ASSERT_TRUE((expr).has_value())
 #define EXPECT_ERR(expr, err)                                                  \
-  do {                                                                         \
-    ASSERT_FALSE((expr).has_value());                                          \
-    EXPECT_EQ((expr).error().code, err);                                       \
-  } while (0)
+  ASSERT_FALSE((expr).has_value());                                            \
+  EXPECT_EQ((expr).error().code, err);
 
 // --------------------------------------------------------------------
 // GENERAL
