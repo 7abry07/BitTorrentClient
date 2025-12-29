@@ -8,7 +8,6 @@ using bencode_encoder = btc::Bencode::Encoder;
 using bencode_err = btc::Bencode::Error::err_code;
 using bencode_val = btc::Bencode::Value;
 
-#define EXPECT_OK(expr) EXPECT_TRUE((expr).has_value())
 #define ASSERT_OK(expr) ASSERT_TRUE((expr).has_value())
 #define EXPECT_ERR(expr, err)                                                  \
   ASSERT_FALSE((expr).has_value());                                            \

@@ -23,32 +23,43 @@ enable_testing()
 # ------------------------------
 # Production executable
 # ------------------------------
-add_executable(${PROJECT_NAME} src/main.cpp src/bencode.cpp)
+add_executable(
+  ${PROJECT_NAME}
+  src/main.cpp 
+  src/bencode.cpp
+  src/torrent.cpp
+)
 
 # ------------------------------
 # Tests executable
 # ------------------------------
-add_executable(test_bencode tests/bencodeTest.cpp src/bencode.cpp)
-target_link_libraries(test_bencode GTest::gtest_main)
+add_executable(
+  btc_tests
+  tests/bencodeTest.cpp 
+  tests/torrentFileTest.cpp 
+  src/bencode.cpp
+  src/torrent.cpp
+)
+target_link_libraries(btc_tests GTest::gtest_main)
 
 target_include_directories(${PROJECT_NAME}
     PRIVATE ${CMAKE_SOURCE_DIR}/include
 )
-target_include_directories(test_bencode
+target_include_directories(btc_tests
     PRIVATE ${CMAKE_SOURCE_DIR}/include
 )
 
 include(GoogleTest)
-gtest_discover_tests(test_bencode)
+gtest_discover_tests(btc_tests)
 
 # ------------------------------
 # Compiler warnings
 # ------------------------------
 if(MSVC)
     target_compile_options(${PROJECT_NAME} PRIVATE /W4)
-    target_compile_options(test_bencode PRIVATE /W4)
+    target_compile_options(btc_tests PRIVATE /W4)
 else()
     target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic)
-    target_compile_options(test_bencode PRIVATE -Wall -Wextra -Wpedantic)
+    target_compile_options(btc_tests PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
