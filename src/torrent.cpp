@@ -188,34 +188,38 @@ TorrentParser::parseMultiple(BencodeDict info) {
   for (auto file : fileList) {
     if (!file.isDict())
       return std::unexpected(Error::filesFieldItemNotDictErr);
-
-    if (!file.getDict().contains("length"))
-      return std::unexpected(Error::missingFileLengthErr);
-    if (!file.getDict().at("length").isInt())
-      return std::unexpected(Error::fileLengthNotIntErr);
-    if (file.getDict().at("length").getInt() < 0)
-      return std::unexpected(Error::multiLengthNegativeErr);
-    if (file.getDict().at("length").getInt() == 0)
-      return std::unexpected(Error::multiLengthZeroErr);
-    if (!file.getDict().contains("path"))
-      return std::unexpected(Error::missingFilePathErr);
-    if (!file.getDict().at("path").isList())
-      return std::unexpected(Error::missingFilePathErr);
-
-    auto path = file.getDict().at("path").getList();
-
-    std::size_t fileLength = file.getDict().at("length").getInt();
-    std::string strPath = "";
-
-    for (auto item : path) {
-      if (!item.isStr())
-        return std::unexpected(Error::filePathFragmentNotStrErr);
-      strPath.append(item.getStr());
-    }
-
-    files.push_back({fileLength, strPath});
+    auto fileInfoRes = parseFile(file.getDict());
+    if (!fileInfoRes)
+      return std::unexpected(fileInfoRes.error());
+    files.push_back(*fileInfoRes);
   }
   return files;
+}
+std::expected<FileInfo, Error> TorrentParser::parseFile(BencodeDict file) {
+  if (!file.contains("length"))
+    return std::unexpected(Error::missingFileLengthErr);
+  if (!file.at("length").isInt())
+    return std::unexpected(Error::fileLengthNotIntErr);
+  if (file.at("length").getInt() < 0)
+    return std::unexpected(Error::multiLengthNegativeErr);
+  if (file.at("length").getInt() == 0)
+    return std::unexpected(Error::multiLengthZeroErr);
+  if (!file.contains("path"))
+    return std::unexpected(Error::missingFilePathErr);
+  if (!file.at("path").isList())
+    return std::unexpected(Error::missingFilePathErr);
+
+  auto path = file.at("path").getList();
+
+  std::size_t fileLength = file.at("length").getInt();
+  std::string strPath = "";
+
+  for (auto item : path) {
+    if (!item.isStr())
+      return std::unexpected(Error::filePathFragmentNotStrErr);
+    strPath.append(item.getStr());
+  }
+  return FileInfo{fileLength, strPath};
 }
 
 std::optional<std::string> TorrentParser::parseComment(BencodeDict root) {

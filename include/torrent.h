@@ -85,6 +85,8 @@ private:
   static std::expected<std::vector<FileInfo>, Error>
   parseMultiple(BencodeDict info);
 
+  static std::expected<FileInfo, Error> parseFile(BencodeDict info);
+
   static std::optional<std::string> parseComment(BencodeDict root);
   static std::optional<std::string> parseCreatedBy(BencodeDict root);
   static std::optional<std::string> parseEncoding(BencodeDict root);
