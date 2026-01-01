@@ -179,7 +179,7 @@ TorrentParser::parseMultiple(BencodeDict info) {
     if (!file.isDict())
       return std::unexpected(Error::filesFieldItemNotDictErr);
 
-    if (file.getDict().contains("length"))
+    if (!file.getDict().contains("length"))
       return std::unexpected(Error::missingFileLengthErr);
     if (!file.getDict().at("length").isInt())
       return std::unexpected(Error::fileLengthNotIntErr);
