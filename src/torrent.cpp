@@ -4,7 +4,9 @@
 #include <expected>
 #include <fstream>
 #include <iterator>
+#include <openssl/sha.h>
 #include <optional>
+#include <print>
 #include <vector>
 
 namespace btc::Torrent {
@@ -106,6 +108,15 @@ TorrentParser::parseContent(std::string content, Bencode::Decoder decoder) {
       (*fileModeRes == FileMode::single) ? std::optional(length) : std::nullopt;
   file.files = (*fileModeRes == FileMode::multiple) ? std::optional(files)
                                                     : std::nullopt;
+
+  unsigned char hash[20];
+  Bencode::Encoder encoder;
+  std::string infoBencode = encoder.encode(static_cast<Bencode::Value>(info));
+
+  SHA1(reinterpret_cast<const unsigned char *>(infoBencode.data()),
+       infoBencode.size(), hash);
+
+  file.infoHash = std::string(reinterpret_cast<char *>(hash), 20);
 
   return file;
 }

@@ -1,9 +1,12 @@
 #include "bencode.h"
 #include "torrent.h"
 #include <gtest/gtest.h>
+#include <ios>
 #include <print>
+#include <string>
 
 using torrentParser = btc::Torrent::TorrentParser;
+using torrentFile = btc::Torrent::TorrentFile;
 using bencodeDecoder = btc::Bencode::Decoder;
 
 #define TEST_PATH "../testFiles/naruto.torrent"

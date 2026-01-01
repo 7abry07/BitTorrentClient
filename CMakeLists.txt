@@ -40,6 +40,9 @@ add_executable(
   src/bencode.cpp
   src/torrent.cpp
 )
+find_package(OpenSSL REQUIRED)
+target_link_libraries(btc OpenSSL::SSL OpenSSL::Crypto)
+target_link_libraries(btc_tests OpenSSL::SSL OpenSSL::Crypto)
 target_link_libraries(btc_tests GTest::gtest_main)
 
 target_include_directories(${PROJECT_NAME}
