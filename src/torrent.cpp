@@ -6,7 +6,6 @@
 #include <iterator>
 #include <openssl/sha.h>
 #include <optional>
-#include <print>
 #include <vector>
 
 namespace btc::Torrent {
@@ -100,7 +99,7 @@ TorrentParser::parseContent(std::string content, Bencode::Decoder decoder) {
   file.createdBy = createdByRes;
   file.encoding = encodingRes;
   file.creationDate = creationDateRes;
-  file.comment = file.name = *nameRes;
+  file.name = *nameRes;
   file.pieces = *piecesRes;
   file.pieceLength = *pieceLengthRes;
   file.announceList = announceListRes;
