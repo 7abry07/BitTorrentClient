@@ -41,7 +41,6 @@ public:
     missingDictTerminatorErr = 500,
     nonStringKeyErr,
     duplicateKeyErr,
-    unorderedKeysErr,
 
     // ---------------------------------
     // TORRENT PARSER
@@ -112,7 +111,6 @@ private:
       {invalidListElementErr, "Invalid element in list"},
       {trailingInputErr, "Unexpected trailing input"},
       {duplicateKeyErr, "Duplicate key in dictionary"},
-      {unorderedKeysErr, "Dictionary keys are not in order"},
       {missingColonErr, "Missing colon after string length"},
 
       // ---------------------------------

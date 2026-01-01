@@ -162,8 +162,6 @@ Decoder::expected_list Decoder::decode_list(std::string_view *input) {
 
 Decoder::expected_dict Decoder::decode_dict(std::string_view *input) {
   Value::Dict dict_;
-  Value::String prev_key = "";
-  bool first = true;
   input->remove_prefix(1);
 
   for (;;) {
@@ -179,8 +177,6 @@ Decoder::expected_dict Decoder::decode_dict(std::string_view *input) {
       return std::unexpected(Error(key_result.error().code));
     if (!key_result->isStr())
       return std::unexpected(Error::nonStringKeyErr);
-    if (!first && key_result->getStr() < prev_key)
-      return std::unexpected(Error::unorderedKeysErr);
 
     auto val_result = internal_decode(input);
     if (!val_result)
@@ -189,9 +185,6 @@ Decoder::expected_dict Decoder::decode_dict(std::string_view *input) {
     auto insert_result = dict_.emplace(key_result->getStr(), *val_result);
     if (!insert_result.second)
       return std::unexpected(Error::duplicateKeyErr);
-
-    prev_key = key_result->getStr();
-    first = false;
   }
 }
 

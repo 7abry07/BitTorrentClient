@@ -287,8 +287,3 @@ TEST(BencodeDict, RejectDuplicateKey) {
   auto res = bencode_decoder::decode("d4:spami43e4:spami56ee");
   EXPECT_ERR(res, btc::Error::duplicateKeyErr);
 }
-
-TEST(BencodeDict, RejectUnorderedKeys) {
-  auto res = bencode_decoder::decode("d4:cccci34e4:aaaai56ee");
-  EXPECT_ERR(res, btc::Error::unorderedKeysErr);
-}
