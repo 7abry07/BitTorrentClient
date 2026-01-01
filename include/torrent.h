@@ -80,12 +80,13 @@ private:
   static std::expected<std::string, Error> parseName(BencodeDict info);
   static std::expected<std::string, Error> parsePieces(BencodeDict info);
   static std::expected<FileMode, Error> validateFileMode(BencodeDict info);
-
   static std::expected<std::size_t, Error> parseSingle(BencodeDict info);
+
+  static std::expected<FileInfo, Error> parseFile(BencodeDict file);
+  static std::expected<std::size_t, Error> parseFileLength(BencodeDict file);
+  static std::expected<std::string, Error> parseFilePath(BencodeDict file);
   static std::expected<std::vector<FileInfo>, Error>
   parseMultiple(BencodeDict info);
-
-  static std::expected<FileInfo, Error> parseFile(BencodeDict info);
 
   static std::optional<std::string> parseComment(BencodeDict root);
   static std::optional<std::string> parseCreatedBy(BencodeDict root);
