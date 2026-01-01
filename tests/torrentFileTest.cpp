@@ -1,7 +1,6 @@
 #include "bencode.h"
 #include "torrent.h"
 #include <gtest/gtest.h>
-#include <ios>
 #include <print>
 #include <string>
 
@@ -23,4 +22,8 @@ TEST(TorrentFile, parseValidTorrentFile) {
   if (!fileRes)
     std::println("{}", fileRes.error().get());
   ASSERT_OK(fileRes);
+
+  std::string infoHash = "\xDE\x2F\xEE\x7C\xD8\xF3\x25\x14\xDC\x13"
+                         "\x8B\x4C\xDD\x53\xC9\x3D\x7D\x7A\x1E\xB6";
+  ASSERT_EQ(fileRes->getInfoHash(), infoHash);
 }
