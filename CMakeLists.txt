@@ -18,6 +18,13 @@ FetchContent_Declare(
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
+FetchContent_Declare(ftxui
+  GIT_REPOSITORY https://github.com/ArthurSonzogni/FTXUI
+  GIT_TAG v6.1.9 
+)
+FetchContent_MakeAvailable(ftxui)
+ 
+
 enable_testing()
 
 # ------------------------------
@@ -41,9 +48,23 @@ add_executable(
   src/torrent.cpp
 )
 find_package(OpenSSL REQUIRED)
-target_link_libraries(btc OpenSSL::SSL OpenSSL::Crypto)
-target_link_libraries(btc_tests OpenSSL::SSL OpenSSL::Crypto)
-target_link_libraries(btc_tests GTest::gtest_main)
+target_link_libraries(btc
+  PRIVATE ftxui::screen
+  PRIVATE ftxui::dom
+  PRIVATE ftxui::component
+
+  OpenSSL::SSL OpenSSL::Crypto
+)
+target_link_libraries(btc_tests 
+  PRIVATE ftxui::screen
+  PRIVATE ftxui::dom
+  PRIVATE ftxui::component
+
+  OpenSSL::SSL 
+  OpenSSL::Crypto
+
+  GTest::gtest_main
+)
 
 target_include_directories(${PROJECT_NAME}
     PRIVATE ${CMAKE_SOURCE_DIR}/include
