@@ -13,6 +13,7 @@
 namespace btc::Torrent {
 
 class TorrentParser {
+
 public:
   static std::expected<TorrentFile, Error>
   parseContent(std::string content, Bencode::Decoder decoder);
