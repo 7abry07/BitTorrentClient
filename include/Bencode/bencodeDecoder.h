@@ -1,41 +1,11 @@
 #pragma once
 
-#include <cstddef>
-#include <cstdint>
-#include <expected>
-#include <map>
-#include <string>
-#include <variant>
-#include <vector>
-
+#include "bencodeValue.h"
 #include "errors.h"
+#include <cstddef>
+#include <expected>
 
 namespace btc::Bencode {
-
-class Value {
-
-public:
-  using Integer = std::int64_t;
-  using String = std::string;
-  using List = std::vector<Value>;
-  using Dict = std::map<String, Value>;
-  using ValueType = std::variant<Integer, String, List, Dict>;
-
-  Value(ValueType val);
-
-  bool isInt();
-  bool isStr();
-  bool isList();
-  bool isDict();
-
-  Integer &getInt();
-  String &getStr();
-  List &getList();
-  Dict &getDict();
-
-private:
-  ValueType val;
-};
 
 class Decoder {
 
@@ -65,17 +35,4 @@ private:
   inline static std::size_t depth = 0;
   inline static const std::uint16_t maxDepth = 256;
 };
-
-class Encoder {
-
-public:
-  static std::string encode(Value val);
-
-private:
-  static std::string encode_int(Value::Integer val);
-  static std::string encode_str(Value::String val);
-  static std::string encode_list(Value::List val);
-  static std::string encode_dict(Value::Dict val);
-};
-
 } // namespace btc::Bencode

@@ -1,4 +1,6 @@
-#include "bencode.h"
+#include "Bencode/bencodeDecoder.h"
+#include "Bencode/bencodeEncoder.h"
+#include "Bencode/bencodeValue.h"
 #include "errors.h"
 #include <gtest/gtest.h>
 #include <limits>

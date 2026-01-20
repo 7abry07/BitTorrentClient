@@ -1,8 +1,9 @@
 #pragma once
 
-#include "bencode.h"
-#include "errors.h"
+#include "Bencode/bencodeDecoder.h"
+#include "Bencode/bencodeValue.h"
 #include <chrono>
+#include <errors.h>
 #include <expected>
 #include <filesystem>
 #include <optional>

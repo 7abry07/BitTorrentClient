@@ -1,11 +1,10 @@
-#include "torrent.h"
-#include "bencode.h"
-#include "errors.h"
+#include "Bencode/bencodeEncoder.h"
 #include <expected>
 #include <fstream>
 #include <iterator>
 #include <openssl/sha.h>
 #include <optional>
+#include <torrent.h>
 #include <vector>
 
 namespace btc::Torrent {

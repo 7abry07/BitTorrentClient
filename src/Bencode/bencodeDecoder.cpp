@@ -1,32 +1,11 @@
-#include "bencode.h"
+#include "Bencode/bencodeDecoder.h"
 #include <cstddef>
 #include <expected>
-#include <format>
 #include <stdexcept>
 #include <string>
-#include <variant>
 
 namespace btc::Bencode {
 
-// ---------------------------------------------------
-// VALUE
-// ---------------------------------------------------
-
-Value::Value(ValueType val) : val(std::move(val)) {}
-
-bool Value::isInt() { return std::holds_alternative<Integer>(this->val); }
-bool Value::isStr() { return std::holds_alternative<String>(this->val); }
-bool Value::isList() { return std::holds_alternative<List>(this->val); }
-bool Value::isDict() { return std::holds_alternative<Dict>(this->val); }
-
-Value::Integer &Value::getInt() { return std::get<Integer>(this->val); }
-Value::String &Value::getStr() { return std::get<String>(this->val); }
-Value::List &Value::getList() { return std::get<List>(this->val); }
-Value::Dict &Value::getDict() { return std::get<Dict>(this->val); }
-
-// ---------------------------------------------------
-// DECODER
-// ---------------------------------------------------
 Decoder::expected_val Decoder::decode(std::string_view input) {
   depth = 0;
   auto result = internal_decode(&input);
@@ -222,51 +201,6 @@ bool Decoder::hasLeadingZeroes(std::string_view input) {
 }
 bool Decoder::isNegativeZero(std::string_view input) {
   return input.size() >= 2 && input.substr(0, 2) == "-0";
-}
-
-// ---------------------------------------------------
-// ENCODER
-// ---------------------------------------------------
-
-std::string Encoder::encode(Value val) {
-  std::string result = "";
-
-  if (val.isInt())
-    result.append(encode_int(val.getInt()));
-  else if (val.isStr())
-    result.append(encode_str(val.getStr()));
-  else if (val.isList())
-    result.append(encode_list(val.getList()));
-  else if (val.isDict())
-    result.append(encode_dict(val.getDict()));
-
-  return result;
-}
-
-std::string Encoder::encode_int(Value::Integer val) {
-  return std::format("i{}e", val);
-}
-
-std::string Encoder::encode_str(Value::String val) {
-  return std::format("{}:{}", val.length(), val);
-}
-
-std::string Encoder::encode_list(Value::List val) {
-  std::string result = "l";
-  for (auto items : val)
-    result.append(encode(items));
-  result.append("e");
-  return result;
-}
-
-std::string Encoder::encode_dict(Value::Dict val) {
-  std::string result = "d";
-  for (auto [first, second] : val) {
-    result.append(encode_str(first));
-    result.append(encode(second));
-  }
-  result.append("e");
-  return result;
 }
 
 } // namespace btc::Bencode

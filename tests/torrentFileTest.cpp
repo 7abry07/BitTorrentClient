@@ -1,4 +1,3 @@
-#include "bencode.h"
 #include "torrent.h"
 #include <chrono>
 #include <gtest/gtest.h>
