@@ -1,15 +1,24 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(btc)
+project(btc LANGUAGES C CXX)
 
+# ------------------------------
+# Global settings
+# ------------------------------
 set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 set(CMAKE_BUILD_TYPE Debug)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 include(FetchContent)
 
+# ------------------------------
+# Dependencies
+# ------------------------------
 FetchContent_Declare(
   googletest
   URL https://github.com/google/googletest/archive/refs/tags/v1.14.0.zip)
@@ -24,38 +33,36 @@ FetchContent_Declare(
   GIT_TAG v6.1.9)
 FetchContent_MakeAvailable(ftxui)
 
+find_package(OpenSSL REQUIRED)
+
 enable_testing()
+
+add_library(btc_core)
+
+target_sources(
+  btc_core PRIVATE src/Bencode/bencodeValue.cpp src/Bencode/bencodeDecoder.cpp
+                   src/Bencode/bencodeEncoder.cpp src/Torrent/torrentParser.cpp)
+
+target_include_directories(btc_core PUBLIC ${CMAKE_SOURCE_DIR}/include)
+
+target_link_libraries(btc_core PUBLIC OpenSSL::SSL OpenSSL::Crypto)
 
 # ------------------------------
 # Production executable
 # ------------------------------
-add_executable(
-  ${PROJECT_NAME}
-  src/main.cpp src/Bencode/bencodeValue.cpp src/Bencode/bencodeDecoder.cpp
-  src/Bencode/bencodeEncoder.cpp src/torrent.cpp)
+add_executable(btc src/main.cpp)
+
+target_link_libraries(btc PRIVATE btc_core ftxui::screen ftxui::dom
+                                  ftxui::component)
 
 # ------------------------------
 # Tests executable
 # ------------------------------
-add_executable(
-  btc_tests
-  tests/bencodeTest.cpp tests/torrentFileTest.cpp src/Bencode/bencodeValue.cpp
-  src/Bencode/bencodeDecoder.cpp src/Bencode/bencodeEncoder.cpp src/torrent.cpp)
+add_executable(btc_tests tests/bencodeTest.cpp tests/torrentFileTest.cpp)
 
-find_package(OpenSSL REQUIRED)
 target_link_libraries(
-  btc
-  PRIVATE ftxui::screen
-  PRIVATE ftxui::dom
-  PRIVATE ftxui::component OpenSSL::SSL OpenSSL::Crypto)
-target_link_libraries(
-  btc_tests
-  PRIVATE ftxui::screen
-  PRIVATE ftxui::dom
-  PRIVATE ftxui::component OpenSSL::SSL OpenSSL::Crypto GTest::gtest_main)
-
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/include)
-target_include_directories(btc_tests PRIVATE ${CMAKE_SOURCE_DIR}/include)
+  btc_tests PRIVATE btc_core GTest::gtest_main ftxui::screen ftxui::dom
+                    ftxui::component)
 
 include(GoogleTest)
 gtest_discover_tests(btc_tests)
@@ -64,9 +71,11 @@ gtest_discover_tests(btc_tests)
 # Compiler warnings
 # ------------------------------
 if(MSVC)
-  target_compile_options(${PROJECT_NAME} PRIVATE /W4)
+  target_compile_options(btc_core PRIVATE /W4)
+  target_compile_options(btc PRIVATE /W4)
   target_compile_options(btc_tests PRIVATE /W4)
 else()
-  target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic)
+  target_compile_options(btc_core PRIVATE -Wall -Wextra -Wpedantic)
+  target_compile_options(btc PRIVATE -Wall -Wextra -Wpedantic)
   target_compile_options(btc_tests PRIVATE -Wall -Wextra -Wpedantic)
 endif()

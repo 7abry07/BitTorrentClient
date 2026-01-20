@@ -1,17 +1,14 @@
+#include "Torrent/torrentParser.h"
 #include "Bencode/bencodeEncoder.h"
 #include <expected>
 #include <fstream>
 #include <iterator>
 #include <openssl/sha.h>
 #include <optional>
-#include <torrent.h>
 #include <vector>
 
 namespace btc::Torrent {
 
-// ---------------------------------------------------
-// TORRENT PARSER
-// ---------------------------------------------------
 std::expected<TorrentFile, Error>
 TorrentParser::parseFile(std::filesystem::path path, Bencode::Decoder decoder) {
   std::fstream file(path);
@@ -37,7 +34,6 @@ TorrentParser::parseContent(std::string content, Bencode::Decoder decoder) {
     return std::unexpected(Error::rootStructureNotDictErr);
 
   BencodeDict root = bencodeRes->getDict();
-
   if (!root.contains("info"))
     return std::unexpected(Error::missingInfoKeyErr);
   if (!root.at("info").isDict())

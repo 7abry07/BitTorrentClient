@@ -1,10 +1,6 @@
 #pragma once
 
-#include "Bencode/bencodeDecoder.h"
-#include "Bencode/bencodeValue.h"
 #include <chrono>
-#include <errors.h>
-#include <expected>
 #include <filesystem>
 #include <optional>
 #include <string>
@@ -13,7 +9,6 @@
 namespace btc::Torrent {
 
 enum class FileMode { single, multiple };
-
 typedef struct {
   std::size_t length;
   std::filesystem::path path;
@@ -62,39 +57,6 @@ public:
   const std::optional<std::vector<std::string>> &getAnnounceList() const {
     return announceList;
   }
-};
-
-class TorrentParser {
-public:
-  static std::expected<TorrentFile, Error> parseFile(std::filesystem::path path,
-                                                     Bencode::Decoder decoder);
-  static std::expected<TorrentFile, Error>
-  parseContent(std::string content, Bencode::Decoder decoder);
-
-private:
-  using Date = std::chrono::year_month_day;
-  using BencodeDict = Bencode::Value::Dict;
-
-  static std::expected<std::string, Error> parseAnnounce(BencodeDict root);
-
-  static std::expected<std::size_t, Error> parsePieceLength(BencodeDict info);
-  static std::expected<std::string, Error> parseName(BencodeDict info);
-  static std::expected<std::string, Error> parsePieces(BencodeDict info);
-  static std::expected<FileMode, Error> validateFileMode(BencodeDict info);
-  static std::expected<std::size_t, Error> parseSingle(BencodeDict info);
-
-  static std::expected<FileInfo, Error> parseFile(BencodeDict file);
-  static std::expected<std::size_t, Error> parseFileLength(BencodeDict file);
-  static std::expected<std::string, Error> parseFilePath(BencodeDict file);
-  static std::expected<std::vector<FileInfo>, Error>
-  parseMultiple(BencodeDict info);
-
-  static std::optional<std::string> parseComment(BencodeDict root);
-  static std::optional<std::string> parseCreatedBy(BencodeDict root);
-  static std::optional<std::string> parseEncoding(BencodeDict root);
-  static std::optional<Date> parseCreationDate(BencodeDict root);
-  static std::optional<std::vector<std::string>>
-  parseAnnounceList(BencodeDict root);
 };
 
 } // namespace btc::Torrent

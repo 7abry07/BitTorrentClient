@@ -1,4 +1,5 @@
-#include "torrent.h"
+#include "Torrent/torrentFile.h"
+#include "Torrent/torrentParser.h"
 #include <chrono>
 #include <gtest/gtest.h>
 #include <string>
