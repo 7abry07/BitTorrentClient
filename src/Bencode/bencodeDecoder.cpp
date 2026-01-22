@@ -1,5 +1,6 @@
-#include "Bencode/bencodeDecoder.h"
+#include <Bencode/bencodeDecoder.h>
 #include <cstddef>
+#include <errors.h>
 #include <expected>
 #include <stdexcept>
 #include <string>
@@ -71,7 +72,7 @@ BencodeDecoder::internal_decode(std::string_view *input) {
 
 BencodeDecoder::expected_int
 BencodeDecoder::decode_int(std::string_view *input) {
-  BencodeValue::Integer int_;
+  BencodeInteger int_;
   input->remove_prefix(1);
   auto int_end = isIntegerValid(*input);
   if (!int_end)
@@ -95,7 +96,7 @@ BencodeDecoder::decode_int(std::string_view *input) {
 
 BencodeDecoder::expected_str
 BencodeDecoder::decode_str(std::string_view *input) {
-  BencodeValue::String str_;
+  BencodeString str_;
   std::size_t str_len;
   auto len_end = isStringValid(*input);
   if (!len_end)
@@ -123,7 +124,7 @@ BencodeDecoder::decode_str(std::string_view *input) {
 
 BencodeDecoder::expected_list
 BencodeDecoder::decode_list(std::string_view *input) {
-  BencodeValue::List list_;
+  BencodeList list_;
   input->remove_prefix(1);
 
   for (;;) {
@@ -145,7 +146,7 @@ BencodeDecoder::decode_list(std::string_view *input) {
 
 BencodeDecoder::expected_dict
 BencodeDecoder::decode_dict(std::string_view *input) {
-  BencodeValue::Dict dict_;
+  BencodeDict dict_;
   input->remove_prefix(1);
 
   for (;;) {

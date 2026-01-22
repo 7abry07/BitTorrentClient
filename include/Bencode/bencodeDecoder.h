@@ -1,11 +1,12 @@
 #pragma once
 
-#include "bencodeValue.h"
-#include "errors.h"
+#include <Bencode/bencodeValue.h>
 #include <cstddef>
 #include <expected>
 
 namespace btc {
+
+class Error;
 
 class BencodeDecoder {
 
@@ -13,10 +14,10 @@ public:
   static std::expected<BencodeValue, Error> decode(std::string_view input);
 
 private:
-  using expected_int = std::expected<BencodeValue::Integer, Error>;
-  using expected_str = std::expected<BencodeValue::String, Error>;
-  using expected_list = std::expected<BencodeValue::List, Error>;
-  using expected_dict = std::expected<BencodeValue::Dict, Error>;
+  using expected_int = std::expected<BencodeInteger, Error>;
+  using expected_str = std::expected<BencodeString, Error>;
+  using expected_list = std::expected<BencodeList, Error>;
+  using expected_dict = std::expected<BencodeDict, Error>;
   using expected_val = std::expected<BencodeValue, Error>;
   using expected_sizet = std::expected<std::size_t, Error>;
 

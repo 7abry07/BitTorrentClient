@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Bencode/bencodeDecoder.h>
+#include <Bencode/bencodeValue.h>
 #include <Torrent/torrentFile.h>
 #include <chrono>
 #include <errors.h>
@@ -12,6 +12,8 @@
 
 namespace btc {
 
+class BencodeDecoder;
+
 class TorrentParser {
 
 public:
@@ -22,7 +24,6 @@ public:
 
 private:
   using Date = std::chrono::year_month_day;
-  using BencodeDict = BencodeValue::Dict;
 
   static std::expected<std::string, Error> parseAnnounce(BencodeDict root);
 

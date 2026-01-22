@@ -1,5 +1,6 @@
-#include "Torrent/torrentParser.h"
-#include "Bencode/bencodeEncoder.h"
+#include <Bencode/bencodeDecoder.h>
+#include <Bencode/bencodeEncoder.h>
+#include <Torrent/torrentParser.h>
 #include <expected>
 #include <fstream>
 #include <iterator>

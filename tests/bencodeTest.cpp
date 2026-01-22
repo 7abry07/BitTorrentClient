@@ -8,7 +8,6 @@
 
 using bencode_decoder = btc::BencodeDecoder;
 using bencode_encoder = btc::BencodeEncoder;
-using bencode_val = btc::BencodeValue;
 
 #define ASSERT_OK(expr) ASSERT_TRUE((expr).has_value())
 #define EXPECT_ERR(expr, err)                                                  \
@@ -111,14 +110,14 @@ TEST(BencodeInteger, ParseMaxPositiveInteger) {
   auto res = bencode_decoder::decode("i9223372036854775807e");
   ASSERT_OK(res);
   ASSERT_TRUE(res->isInt());
-  ASSERT_EQ(res->getInt(), std::numeric_limits<bencode_val::Integer>::max());
+  ASSERT_EQ(res->getInt(), std::numeric_limits<btc::BencodeInteger>::max());
 }
 
 TEST(BencodeInteger, ParseMaxNegativeInteger) {
   auto res = bencode_decoder::decode("i-9223372036854775808e");
   ASSERT_OK(res);
   ASSERT_TRUE(res->isInt());
-  ASSERT_EQ(res->getInt(), std::numeric_limits<bencode_val::Integer>::min());
+  ASSERT_EQ(res->getInt(), std::numeric_limits<btc::BencodeInteger>::min());
 }
 
 TEST(BencodeInteger, RejectPositiveOverflowingInteger) {
@@ -261,10 +260,10 @@ TEST(BencodeDict, ParseSimpleDict) {
   ASSERT_OK(res);
   ASSERT_TRUE(res->isDict());
 
-  ASSERT_TRUE(res->getDict().contains(bencode_val::String("spam")));
+  ASSERT_TRUE(res->getDict().contains(btc::BencodeString("spam")));
   ASSERT_EQ(res->getDict().at("spam").getStr(), "abc");
 
-  ASSERT_TRUE(res->getDict().contains(bencode_val::String("zebra")));
+  ASSERT_TRUE(res->getDict().contains(btc::BencodeString("zebra")));
   ASSERT_EQ(res->getDict().at("zebra").getInt(), 43);
 }
 

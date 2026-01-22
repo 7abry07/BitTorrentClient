@@ -20,15 +20,15 @@ std::string BencodeEncoder::encode(BencodeValue val) {
   return result;
 }
 
-std::string BencodeEncoder::encode_int(BencodeValue::Integer val) {
+std::string BencodeEncoder::encode_int(BencodeInteger val) {
   return std::format("i{}e", val);
 }
 
-std::string BencodeEncoder::encode_str(BencodeValue::String val) {
+std::string BencodeEncoder::encode_str(BencodeString val) {
   return std::format("{}:{}", val.length(), val);
 }
 
-std::string BencodeEncoder::encode_list(BencodeValue::List val) {
+std::string BencodeEncoder::encode_list(BencodeList val) {
   std::string result = "l";
   for (auto items : val)
     result.append(encode(items));
@@ -36,7 +36,7 @@ std::string BencodeEncoder::encode_list(BencodeValue::List val) {
   return result;
 }
 
-std::string BencodeEncoder::encode_dict(BencodeValue::Dict val) {
+std::string BencodeEncoder::encode_dict(BencodeDict val) {
   std::string result = "d";
   for (auto [first, second] : val) {
     result.append(encode_str(first));

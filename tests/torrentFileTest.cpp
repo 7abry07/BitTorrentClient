@@ -1,5 +1,7 @@
-#include "Torrent/torrentFile.h"
-#include "Torrent/torrentParser.h"
+#include <Bencode/bencodeDecoder.h>
+#include <Bencode/bencodeEncoder.h>
+#include <Torrent/torrentFile.h>
+#include <Torrent/torrentParser.h>
 #include <chrono>
 #include <gtest/gtest.h>
 #include <string>
