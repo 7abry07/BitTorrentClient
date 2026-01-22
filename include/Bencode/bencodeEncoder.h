@@ -3,18 +3,18 @@
 #include "Bencode/bencodeValue.h"
 #include <string>
 
-namespace btc::Bencode {
+namespace btc {
 
-class Encoder {
+class BencodeEncoder {
 
 public:
-  static std::string encode(Value val);
+  static std::string encode(BencodeValue val);
 
 private:
-  static std::string encode_int(Value::Integer val);
-  static std::string encode_str(Value::String val);
-  static std::string encode_list(Value::List val);
-  static std::string encode_dict(Value::Dict val);
+  static std::string encode_int(BencodeValue::Integer val);
+  static std::string encode_str(BencodeValue::String val);
+  static std::string encode_list(BencodeValue::List val);
+  static std::string encode_dict(BencodeValue::Dict val);
 };
 
-} // namespace btc::Bencode
+} // namespace btc

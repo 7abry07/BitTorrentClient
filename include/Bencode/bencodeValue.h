@@ -6,18 +6,18 @@
 #include <variant>
 #include <vector>
 
-namespace btc::Bencode {
+namespace btc {
 
-class Value {
+class BencodeValue {
 
 public:
   using Integer = std::int64_t;
   using String = std::string;
-  using List = std::vector<Value>;
-  using Dict = std::map<String, Value>;
+  using List = std::vector<BencodeValue>;
+  using Dict = std::map<String, BencodeValue>;
   using ValueType = std::variant<Integer, String, List, Dict>;
 
-  Value(ValueType val);
+  BencodeValue(ValueType val);
 
   bool isInt();
   bool isStr();
@@ -33,4 +33,4 @@ private:
   ValueType val;
 };
 
-} // namespace btc::Bencode
+} // namespace btc

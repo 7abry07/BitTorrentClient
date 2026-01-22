@@ -3,9 +3,9 @@
 #include <format>
 #include <string>
 
-namespace btc::Bencode {
+namespace btc {
 
-std::string Encoder::encode(Value val) {
+std::string BencodeEncoder::encode(BencodeValue val) {
   std::string result = "";
 
   if (val.isInt())
@@ -20,15 +20,15 @@ std::string Encoder::encode(Value val) {
   return result;
 }
 
-std::string Encoder::encode_int(Value::Integer val) {
+std::string BencodeEncoder::encode_int(BencodeValue::Integer val) {
   return std::format("i{}e", val);
 }
 
-std::string Encoder::encode_str(Value::String val) {
+std::string BencodeEncoder::encode_str(BencodeValue::String val) {
   return std::format("{}:{}", val.length(), val);
 }
 
-std::string Encoder::encode_list(Value::List val) {
+std::string BencodeEncoder::encode_list(BencodeValue::List val) {
   std::string result = "l";
   for (auto items : val)
     result.append(encode(items));
@@ -36,7 +36,7 @@ std::string Encoder::encode_list(Value::List val) {
   return result;
 }
 
-std::string Encoder::encode_dict(Value::Dict val) {
+std::string BencodeEncoder::encode_dict(BencodeValue::Dict val) {
   std::string result = "d";
   for (auto [first, second] : val) {
     result.append(encode_str(first));
@@ -45,5 +45,4 @@ std::string Encoder::encode_dict(Value::Dict val) {
   result.append("e");
   return result;
 }
-
-} // namespace btc::Bencode
+} // namespace btc

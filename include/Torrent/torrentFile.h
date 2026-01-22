@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-namespace btc::Torrent {
+namespace btc {
 
 enum class FileMode { single, multiple };
 typedef struct {
@@ -59,4 +59,4 @@ public:
   }
 };
 
-} // namespace btc::Torrent
+} // namespace btc

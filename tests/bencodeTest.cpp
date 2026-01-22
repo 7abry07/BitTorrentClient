@@ -6,9 +6,9 @@
 #include <limits>
 #include <string>
 
-using bencode_decoder = btc::Bencode::Decoder;
-using bencode_encoder = btc::Bencode::Encoder;
-using bencode_val = btc::Bencode::Value;
+using bencode_decoder = btc::BencodeDecoder;
+using bencode_encoder = btc::BencodeEncoder;
+using bencode_val = btc::BencodeValue;
 
 #define ASSERT_OK(expr) ASSERT_TRUE((expr).has_value())
 #define EXPECT_ERR(expr, err)                                                  \

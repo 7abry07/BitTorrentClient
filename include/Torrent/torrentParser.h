@@ -10,19 +10,19 @@
 #include <string>
 #include <vector>
 
-namespace btc::Torrent {
+namespace btc {
 
 class TorrentParser {
 
 public:
-  static std::expected<TorrentFile, Error>
-  parseContent(std::string content, Bencode::Decoder decoder);
+  static std::expected<TorrentFile, Error> parseContent(std::string content,
+                                                        BencodeDecoder decoder);
   static std::expected<TorrentFile, Error> parseFile(std::filesystem::path path,
-                                                     Bencode::Decoder decoder);
+                                                     BencodeDecoder decoder);
 
 private:
   using Date = std::chrono::year_month_day;
-  using BencodeDict = Bencode::Value::Dict;
+  using BencodeDict = BencodeValue::Dict;
 
   static std::expected<std::string, Error> parseAnnounce(BencodeDict root);
 
@@ -46,4 +46,4 @@ private:
   parseAnnounceList(BencodeDict root);
 };
 
-} // namespace btc::Torrent
+} // namespace btc

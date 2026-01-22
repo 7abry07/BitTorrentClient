@@ -7,10 +7,10 @@
 #include <optional>
 #include <vector>
 
-namespace btc::Torrent {
+namespace btc {
 
 std::expected<TorrentFile, Error>
-TorrentParser::parseFile(std::filesystem::path path, Bencode::Decoder decoder) {
+TorrentParser::parseFile(std::filesystem::path path, BencodeDecoder decoder) {
   std::fstream file(path);
   if (!file)
     return std::unexpected(Error::errorOpeningFileErr);
@@ -25,7 +25,7 @@ TorrentParser::parseFile(std::filesystem::path path, Bencode::Decoder decoder) {
 }
 
 std::expected<TorrentFile, Error>
-TorrentParser::parseContent(std::string content, Bencode::Decoder decoder) {
+TorrentParser::parseContent(std::string content, BencodeDecoder decoder) {
   auto bencodeRes = decoder.decode(content);
   if (!bencodeRes)
     return std::unexpected(bencodeRes.error());
@@ -105,8 +105,8 @@ TorrentParser::parseContent(std::string content, Bencode::Decoder decoder) {
     file.files = files;
 
   unsigned char hash[20];
-  Bencode::Encoder encoder;
-  std::string infoBencode = encoder.encode(static_cast<Bencode::Value>(info));
+  BencodeEncoder encoder;
+  std::string infoBencode = encoder.encode(static_cast<BencodeValue>(info));
 
   SHA1(reinterpret_cast<const unsigned char *>(infoBencode.data()),
        infoBencode.size(), hash);
@@ -292,4 +292,4 @@ TorrentParser::parseAnnounceList(BencodeDict root) {
   }
   return trackers;
 }
-} // namespace btc::Torrent
+} // namespace btc

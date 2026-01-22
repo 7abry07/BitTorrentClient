@@ -5,19 +5,19 @@
 #include <cstddef>
 #include <expected>
 
-namespace btc::Bencode {
+namespace btc {
 
-class Decoder {
+class BencodeDecoder {
 
 public:
-  static std::expected<Value, Error> decode(std::string_view input);
+  static std::expected<BencodeValue, Error> decode(std::string_view input);
 
 private:
-  using expected_int = std::expected<Value::Integer, Error>;
-  using expected_str = std::expected<Value::String, Error>;
-  using expected_list = std::expected<Value::List, Error>;
-  using expected_dict = std::expected<Value::Dict, Error>;
-  using expected_val = std::expected<Value, Error>;
+  using expected_int = std::expected<BencodeValue::Integer, Error>;
+  using expected_str = std::expected<BencodeValue::String, Error>;
+  using expected_list = std::expected<BencodeValue::List, Error>;
+  using expected_dict = std::expected<BencodeValue::Dict, Error>;
+  using expected_val = std::expected<BencodeValue, Error>;
   using expected_sizet = std::expected<std::size_t, Error>;
 
   static expected_val internal_decode(std::string_view *input);
@@ -35,4 +35,4 @@ private:
   inline static std::size_t depth = 0;
   inline static const std::uint16_t maxDepth = 256;
 };
-} // namespace btc::Bencode
+} // namespace btc

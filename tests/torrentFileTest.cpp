@@ -4,9 +4,9 @@
 #include <gtest/gtest.h>
 #include <string>
 
-using torrentParser = btc::Torrent::TorrentParser;
-using torrentFile = btc::Torrent::TorrentFile;
-using bencodeDecoder = btc::Bencode::Decoder;
+using torrentParser = btc::TorrentParser;
+using torrentFile = btc::TorrentFile;
+using bencodeDecoder = btc::BencodeDecoder;
 
 #define TEST_PATH "../testFiles/naruto.torrent"
 
@@ -21,7 +21,7 @@ TEST(TorrentFile, parseValidTorrentFile) {
   auto fileRes = parser.parseFile(TEST_PATH, decoder);
   ASSERT_OK(fileRes);
 
-  btc::Torrent::TorrentFile file = *fileRes;
+  btc::TorrentFile file = *fileRes;
 
   std::string infoHash = "\xDE\x2F\xEE\x7C\xD8\xF3\x25\x14\xDC\x13"
                          "\x8B\x4C\xDD\x53\xC9\x3D\x7D\x7A\x1E\xB6";
