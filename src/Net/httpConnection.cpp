@@ -1,22 +1,12 @@
 #include <Net/httpConnection.h>
-#include <boost/asio.hpp>
-#include <boost/asio/redirect_error.hpp>
-#include <boost/asio/use_awaitable.hpp>
-#include <boost/beast/core/flat_buffer.hpp>
-#include <boost/beast/http/dynamic_body_fwd.hpp>
-#include <boost/beast/http/impl/read.hpp>
-#include <boost/beast/http/impl/write.hpp>
-#include <boost/beast/http/message_fwd.hpp>
-#include <boost/beast/http/string_body_fwd.hpp>
-#include <boost/beast/http/verb.hpp>
-#include <boost/system/detail/error_code.hpp>
 #include <expected>
+#include <helpers.h>
 #include <string>
 
 namespace btc {
 
-awaitable<std::expected<HttpConnection, sys::error_code>>
-HttpConnection::connect(io_context &ctx, std::string hostname,
+net::awaitable<std::expected<HttpConnection, sys::error_code>>
+HttpConnection::connect(net::io_context &ctx, std::string hostname,
                         std::uint16_t port) {
   HttpConnection conn(ctx, hostname, port);
 
@@ -37,7 +27,7 @@ HttpConnection::connect(io_context &ctx, std::string hostname,
   co_return conn;
 }
 
-awaitable<http::response<http::dynamic_body>>
+net::awaitable<http::response<http::dynamic_body>>
 HttpConnection::get(std::string url) {
   auto hostnamePos = url.find("://");
   if (hostnamePos == std::string::npos)
