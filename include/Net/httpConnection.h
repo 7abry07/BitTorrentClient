@@ -2,32 +2,39 @@
 
 #include <boost/asio.hpp>
 #include <boost/beast.hpp>
-#include <boost/system/detail/error_code.hpp>
-#include <cstdint>
+#include <boost/system.hpp>
+
 #include <errors.h>
 #include <expected>
 #include <helpers.h>
+#include <system_error>
 
 namespace btc {
 
 class HttpConnection {
 
-public:
-  static net::awaitable<std::expected<HttpConnection, sys::error_code>>
-  connect(net::io_context &ctx, std::string hostname, std::uint16_t port);
+private:
+  using exp_connection = std::expected<HttpConnection, std::error_code>;
+  using response = http::response<http::dynamic_body>;
 
-  net::awaitable<http::response<http::dynamic_body>> get(std::string url);
+  using await_exp_connection = net::awaitable<exp_connection>;
+  using await_response = net::awaitable<response>;
+
+public:
+  await_response get(std::string url);
+  static await_exp_connection connect(net::io_context &ctx,
+                                      std::string hostname, port_t port);
 
 private:
-  HttpConnection(net::io_context &ctx, std::string hostname, std::uint16_t port)
+  HttpConnection(net::io_context &ctx, std::string hostname, port_t port)
       : ctx(ctx), resolver(ctx), stream(ctx), hostname(hostname), port(port) {}
 
   net::io_context &ctx;
   tcp::resolver resolver;
   beast::tcp_stream stream;
 
-  std::uint16_t port;
   std::string hostname;
+  port_t port;
 };
 
 } // namespace btc

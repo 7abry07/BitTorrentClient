@@ -5,9 +5,9 @@
 
 namespace btc {
 
-net::awaitable<std::expected<HttpConnection, sys::error_code>>
+HttpConnection::await_exp_connection
 HttpConnection::connect(net::io_context &ctx, std::string hostname,
-                        std::uint16_t port) {
+                        port_t port) {
   HttpConnection conn(ctx, hostname, port);
 
   sys::error_code ec;
@@ -27,8 +27,7 @@ HttpConnection::connect(net::io_context &ctx, std::string hostname,
   co_return conn;
 }
 
-net::awaitable<http::response<http::dynamic_body>>
-HttpConnection::get(std::string url) {
+HttpConnection::await_response HttpConnection::get(std::string url) {
   auto hostnamePos = url.find("://");
   if (hostnamePos == std::string::npos)
     co_return http::response<http::dynamic_body>();
