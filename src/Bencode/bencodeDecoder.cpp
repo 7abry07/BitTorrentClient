@@ -1,3 +1,4 @@
+#include "Bencode/bencodeValue.h"
 #include <Bencode/bencodeDecoder.h>
 #include <cstddef>
 #include <errors.h>
@@ -7,7 +8,7 @@
 
 namespace btc {
 
-BencodeDecoder::expected_val BencodeDecoder::decode(std::string_view input) {
+BencodeDecoder::exp_node BencodeDecoder::decode(std::string_view input) {
   depth = 0;
   auto result = internal_decode(&input);
   if (result && !input.empty())
@@ -15,7 +16,7 @@ BencodeDecoder::expected_val BencodeDecoder::decode(std::string_view input) {
   return result;
 }
 
-BencodeDecoder::expected_val
+BencodeDecoder::exp_node
 BencodeDecoder::internal_decode(std::string_view *input) {
   if (++depth == maxDepth)
     return std::unexpected(error_code::maximumNestingLimitExcedeedErr);
@@ -37,32 +38,32 @@ BencodeDecoder::internal_decode(std::string_view *input) {
   case '-': {
     auto result = decode_str(input);
     depth--;
-    return result.has_value() ? std::expected<BencodeValue, std::error_code>(
-                                    BencodeValue(result.value()))
+    return result.has_value() ? std::expected<BenNode, std::error_code>(
+                                    BenNode(result.value()))
                               : std::unexpected(result.error());
   }
 
   case 'i': {
     auto result = decode_int(input);
     depth--;
-    return result.has_value() ? std::expected<BencodeValue, std::error_code>(
-                                    BencodeValue(result.value()))
+    return result.has_value() ? std::expected<BenNode, std::error_code>(
+                                    BenNode(result.value()))
                               : std::unexpected(result.error());
   }
 
   case 'l': {
     auto result = decode_list(input);
     depth--;
-    return result.has_value() ? std::expected<BencodeValue, std::error_code>(
-                                    BencodeValue(result.value()))
+    return result.has_value() ? std::expected<BenNode, std::error_code>(
+                                    BenNode(result.value()))
                               : std::unexpected(result.error());
   }
 
   case 'd': {
     auto result = decode_dict(input);
     depth--;
-    return result.has_value() ? std::expected<BencodeValue, std::error_code>(
-                                    BencodeValue(result.value()))
+    return result.has_value() ? std::expected<BenNode, std::error_code>(
+                                    BenNode(result.value()))
                               : std::unexpected(result.error());
   }
   }
@@ -71,9 +72,8 @@ BencodeDecoder::internal_decode(std::string_view *input) {
   return std::unexpected(error_code::invalidTypeEncounterErr);
 }
 
-BencodeDecoder::expected_int
-BencodeDecoder::decode_int(std::string_view *input) {
-  BencodeInteger int_;
+BencodeDecoder::exp_int BencodeDecoder::decode_int(std::string_view *input) {
+  b_int int_;
   input->remove_prefix(1);
   auto int_end = isIntegerValid(*input);
   if (!int_end)
@@ -94,9 +94,8 @@ BencodeDecoder::decode_int(std::string_view *input) {
   return int_;
 }
 
-BencodeDecoder::expected_str
-BencodeDecoder::decode_str(std::string_view *input) {
-  BencodeString str_;
+BencodeDecoder::exp_str BencodeDecoder::decode_str(std::string_view *input) {
+  b_string str;
   std::size_t str_len;
   auto len_end = isStringValid(*input);
   if (!len_end)
@@ -113,18 +112,17 @@ BencodeDecoder::decode_str(std::string_view *input) {
     return std::unexpected(error_code::stringTooLargeErr);
   }
 
-  std::string_view str = input->substr(*len_end + 1, str_len);
-  if (str.length() < str_len)
+  std::string_view read_str = input->substr(*len_end + 1, str_len);
+  if (read_str.length() < str_len)
     return std::unexpected(error_code::lengthMismatchErr);
 
-  str_.append(input->substr(*len_end + 1, str_len));
+  str.append(input->substr(*len_end + 1, str_len));
   input->remove_prefix(*len_end + 1 + str_len);
-  return str_;
+  return str;
 }
 
-BencodeDecoder::expected_list
-BencodeDecoder::decode_list(std::string_view *input) {
-  BencodeList list_;
+BencodeDecoder::exp_list BencodeDecoder::decode_list(std::string_view *input) {
+  b_list list;
   input->remove_prefix(1);
 
   for (;;) {
@@ -132,7 +130,7 @@ BencodeDecoder::decode_list(std::string_view *input) {
       return std::unexpected(error_code::missingListTerminatorErr);
     if (input->at(0) == 'e') {
       input->remove_prefix(1);
-      return list_;
+      return list;
     }
 
     auto result = internal_decode(input);
@@ -140,13 +138,12 @@ BencodeDecoder::decode_list(std::string_view *input) {
       return (result.error() == error_code::maximumNestingLimitExcedeedErr)
                  ? std::unexpected(error_code::maximumNestingLimitExcedeedErr)
                  : std::unexpected(error_code::invalidListElementErr);
-    list_.push_back(result.value());
+    list.push_back(result.value());
   }
 }
 
-BencodeDecoder::expected_dict
-BencodeDecoder::decode_dict(std::string_view *input) {
-  BencodeDict dict_;
+BencodeDecoder::exp_dict BencodeDecoder::decode_dict(std::string_view *input) {
+  b_dict dict;
   input->remove_prefix(1);
 
   for (;;) {
@@ -154,7 +151,7 @@ BencodeDecoder::decode_dict(std::string_view *input) {
       return std::unexpected(error_code::missingDictTerminatorErr);
     if (input->at(0) == 'e') {
       input->remove_prefix(1);
-      return dict_;
+      return dict;
     }
 
     auto key_result = internal_decode(input);
@@ -167,13 +164,13 @@ BencodeDecoder::decode_dict(std::string_view *input) {
     if (!val_result)
       return std::unexpected(val_result.error());
 
-    auto insert_result = dict_.emplace(key_result->getStr(), *val_result);
+    auto insert_result = dict.emplace(key_result->getStr(), *val_result);
     if (!insert_result.second)
       return std::unexpected(error_code::duplicateKeyErr);
   }
 }
 
-BencodeDecoder::expected_sizet
+BencodeDecoder::exp_sizet
 BencodeDecoder::isIntegerValid(std::string_view input) {
   std::size_t int_end = input.find('e');
 
@@ -188,7 +185,7 @@ BencodeDecoder::isIntegerValid(std::string_view input) {
   return int_end;
 }
 
-BencodeDecoder::expected_sizet
+BencodeDecoder::exp_sizet
 BencodeDecoder::isStringValid(std::string_view input) {
   std::size_t len_end = input.find(':');
 

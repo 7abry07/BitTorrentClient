@@ -35,24 +35,24 @@ public:
                                    BencodeDecoder decoder);
 
 private:
-  static exp_string parseAnnounce(BencodeDict root);
+  static exp_string parseAnnounce(b_dict root);
 
-  static exp_sizet parsePieceLength(BencodeDict info);
-  static exp_string parseName(BencodeDict info);
-  static exp_string parsePieces(BencodeDict info);
-  static exp_filemode validateFileMode(BencodeDict info);
-  static exp_sizet parseSingle(BencodeDict info);
+  static exp_sizet parsePieceLength(b_dict info);
+  static exp_string parseName(b_dict info);
+  static exp_string parsePieces(b_dict info);
+  static exp_filemode validateFileMode(b_dict info);
+  static exp_sizet parseSingle(b_dict info);
 
-  static exp_fileinfo parseFile(BencodeDict file);
-  static exp_sizet parseFileLength(BencodeDict file);
-  static exp_string parseFilePath(BencodeDict file);
-  static exp_files parseMultiple(BencodeDict info);
+  static exp_fileinfo parseFile(b_dict file);
+  static exp_sizet parseFileLength(b_dict file);
+  static exp_string parseFilePath(b_dict file);
+  static exp_files parseMultiple(b_dict info);
 
-  static opt_string parseComment(BencodeDict root);
-  static opt_string parseCreatedBy(BencodeDict root);
-  static opt_string parseEncoding(BencodeDict root);
-  static opt_date parseCreationDate(BencodeDict root);
-  static opt_stringlist parseAnnounceList(BencodeDict root);
+  static opt_string parseComment(b_dict root);
+  static opt_string parseCreatedBy(b_dict root);
+  static opt_string parseEncoding(b_dict root);
+  static opt_date parseCreationDate(b_dict root);
+  static opt_stringlist parseAnnounceList(b_dict root);
 };
 
 } // namespace btc

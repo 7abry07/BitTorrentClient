@@ -1,11 +1,12 @@
 #include "Bencode/bencodeEncoder.h"
+#include "Bencode/bencodeValue.h"
 
 #include <format>
 #include <string>
 
 namespace btc {
 
-std::string BencodeEncoder::encode(BencodeValue val) {
+std::string BencodeEncoder::encode(BenNode val) {
   std::string result = "";
 
   if (val.isInt())
@@ -20,15 +21,15 @@ std::string BencodeEncoder::encode(BencodeValue val) {
   return result;
 }
 
-std::string BencodeEncoder::encode_int(BencodeInteger val) {
+std::string BencodeEncoder::encode_int(b_int val) {
   return std::format("i{}e", val);
 }
 
-std::string BencodeEncoder::encode_str(BencodeString val) {
+std::string BencodeEncoder::encode_str(b_string val) {
   return std::format("{}:{}", val.length(), val);
 }
 
-std::string BencodeEncoder::encode_list(BencodeList val) {
+std::string BencodeEncoder::encode_list(b_list val) {
   std::string result = "l";
   for (auto items : val)
     result.append(encode(items));
@@ -36,7 +37,7 @@ std::string BencodeEncoder::encode_list(BencodeList val) {
   return result;
 }
 
-std::string BencodeEncoder::encode_dict(BencodeDict val) {
+std::string BencodeEncoder::encode_dict(b_dict val) {
   std::string result = "d";
   for (auto [first, second] : val) {
     result.append(encode_str(first));

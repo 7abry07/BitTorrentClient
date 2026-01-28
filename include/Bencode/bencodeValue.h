@@ -7,37 +7,33 @@
 #include <vector>
 
 namespace btc {
-class BencodeValue;
 
-using BencodeInteger = std::int64_t;
-using BencodeString = std::string;
-using BencodeList = std::vector<BencodeValue>;
-using BencodeDict = std::map<BencodeString, BencodeValue>;
+class BenNode;
 
-class BencodeValue {
+using b_int = std::int64_t;
+using b_string = std::string;
+using b_list = std::vector<BenNode>;
+using b_dict = std::map<b_string, BenNode>;
+
+class BenNode {
 
 public:
-  // using Integer = std::int64_t;
-  // using String = std::string;
-  // using List = std::vector<BencodeValue>;
-  // using Dict = std::map<String, BencodeValue>;
-  using ValueType =
-      std::variant<BencodeInteger, BencodeString, BencodeList, BencodeDict>;
+  using b_val = std::variant<b_int, b_string, b_list, b_dict>;
 
-  BencodeValue(ValueType val);
+  BenNode(b_val val);
 
   bool isInt();
   bool isStr();
   bool isList();
   bool isDict();
 
-  BencodeInteger &getInt();
-  BencodeString &getStr();
-  BencodeList &getList();
-  BencodeDict &getDict();
+  b_int &getInt();
+  b_string &getStr();
+  b_list &getList();
+  b_dict &getDict();
 
 private:
-  ValueType val;
+  b_val val;
 };
 
 } // namespace btc

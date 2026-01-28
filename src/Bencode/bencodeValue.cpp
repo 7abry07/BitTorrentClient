@@ -2,32 +2,16 @@
 
 namespace btc {
 
-BencodeValue::BencodeValue(ValueType val) : val(std::move(val)) {}
+BenNode::BenNode(b_val val) : val(std::move(val)) {}
 
-bool BencodeValue::isInt() {
-  return std::holds_alternative<BencodeInteger>(this->val);
-}
-bool BencodeValue::isStr() {
-  return std::holds_alternative<BencodeString>(this->val);
-}
-bool BencodeValue::isList() {
-  return std::holds_alternative<BencodeList>(this->val);
-}
-bool BencodeValue::isDict() {
-  return std::holds_alternative<BencodeDict>(this->val);
-}
+bool BenNode::isInt() { return std::holds_alternative<b_int>(this->val); }
+bool BenNode::isStr() { return std::holds_alternative<b_string>(this->val); }
+bool BenNode::isList() { return std::holds_alternative<b_list>(this->val); }
+bool BenNode::isDict() { return std::holds_alternative<b_dict>(this->val); }
 
-BencodeInteger &BencodeValue::getInt() {
-  return std::get<BencodeInteger>(this->val);
-}
-BencodeString &BencodeValue::getStr() {
-  return std::get<BencodeString>(this->val);
-}
-BencodeList &BencodeValue::getList() {
-  return std::get<BencodeList>(this->val);
-}
-BencodeDict &BencodeValue::getDict() {
-  return std::get<BencodeDict>(this->val);
-}
+b_int &BenNode::getInt() { return std::get<b_int>(this->val); }
+b_string &BenNode::getStr() { return std::get<b_string>(this->val); }
+b_list &BenNode::getList() { return std::get<b_list>(this->val); }
+b_dict &BenNode::getDict() { return std::get<b_dict>(this->val); }
 
 } // namespace btc
