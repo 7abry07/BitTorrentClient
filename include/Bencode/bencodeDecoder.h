@@ -2,7 +2,9 @@
 
 #include <Bencode/bencodeValue.h>
 #include <cstddef>
+#include <errors.h>
 #include <expected>
+#include <system_error>
 
 namespace btc {
 
@@ -11,15 +13,16 @@ class Error;
 class BencodeDecoder {
 
 public:
-  static std::expected<BencodeValue, Error> decode(std::string_view input);
+  static std::expected<BencodeValue, std::error_code>
+  decode(std::string_view input);
 
 private:
-  using expected_int = std::expected<BencodeInteger, Error>;
-  using expected_str = std::expected<BencodeString, Error>;
-  using expected_list = std::expected<BencodeList, Error>;
-  using expected_dict = std::expected<BencodeDict, Error>;
-  using expected_val = std::expected<BencodeValue, Error>;
-  using expected_sizet = std::expected<std::size_t, Error>;
+  using expected_int = std::expected<BencodeInteger, std::error_code>;
+  using expected_str = std::expected<BencodeString, std::error_code>;
+  using expected_list = std::expected<BencodeList, std::error_code>;
+  using expected_dict = std::expected<BencodeDict, std::error_code>;
+  using expected_val = std::expected<BencodeValue, std::error_code>;
+  using expected_sizet = std::expected<std::size_t, std::error_code>;
 
   static expected_val internal_decode(std::string_view *input);
   static expected_int decode_int(std::string_view *input);

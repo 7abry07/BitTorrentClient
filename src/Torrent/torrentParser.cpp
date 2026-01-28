@@ -1,3 +1,4 @@
+#include "error_codes.h"
 #include <Bencode/bencodeDecoder.h>
 #include <Bencode/bencodeEncoder.h>
 #include <Torrent/torrentParser.h>
@@ -6,15 +7,16 @@
 #include <iterator>
 #include <openssl/sha.h>
 #include <optional>
+#include <system_error>
 #include <vector>
 
 namespace btc {
 
-std::expected<TorrentFile, Error>
+std::expected<TorrentFile, std::error_code>
 TorrentParser::parseFile(std::filesystem::path path, BencodeDecoder decoder) {
   std::fstream file(path);
   if (!file)
-    return std::unexpected(Error::errorOpeningFileErr);
+    return std::unexpected(error_code::errorOpeningFileErr);
 
   std::string content{(std::istreambuf_iterator<char>(file)),
                       std::istreambuf_iterator<char>()};
@@ -25,20 +27,20 @@ TorrentParser::parseFile(std::filesystem::path path, BencodeDecoder decoder) {
   return parseContent(content, decoder);
 }
 
-std::expected<TorrentFile, Error>
+std::expected<TorrentFile, std::error_code>
 TorrentParser::parseContent(std::string content, BencodeDecoder decoder) {
   auto bencodeRes = decoder.decode(content);
   if (!bencodeRes)
     return std::unexpected(bencodeRes.error());
 
   if (!bencodeRes->isDict())
-    return std::unexpected(Error::rootStructureNotDictErr);
+    return std::unexpected(error_code::rootStructureNotDictErr);
 
   BencodeDict root = bencodeRes->getDict();
   if (!root.contains("info"))
-    return std::unexpected(Error::missingInfoKeyErr);
+    return std::unexpected(error_code::missingInfoKeyErr);
   if (!root.at("info").isDict())
-    return std::unexpected(Error::infoKeyNotDictErr);
+    return std::unexpected(error_code::infoKeyNotDictErr);
   BencodeDict info = root.at("info").getDict();
 
   auto announceRes = parseAnnounce(root);
@@ -117,74 +119,77 @@ TorrentParser::parseContent(std::string content, BencodeDecoder decoder) {
   return file;
 }
 
-std::expected<std::string, Error>
+std::expected<std::string, std::error_code>
 TorrentParser::parseAnnounce(BencodeDict root) {
   if (!root.contains("announce"))
-    return std::unexpected(Error::missingAnnounceKeyErr);
+    return std::unexpected(error_code::missingAnnounceKeyErr);
   if (!root.at("announce").isStr())
-    return std::unexpected(Error::announceKeyNotStrErr);
+    return std::unexpected(error_code::announceKeyNotStrErr);
   return root.at("announce").getStr();
 }
 
-std::expected<std::size_t, Error>
+std::expected<std::size_t, std::error_code>
 TorrentParser::parsePieceLength(BencodeDict info) {
   if (!info.contains("piece length"))
-    return std::unexpected(Error::missingPieceLengthFieldErr);
+    return std::unexpected(error_code::missingPieceLengthFieldErr);
   if (!info.at("piece length").isInt())
-    return std::unexpected(Error::pieceLengthFieldNotIntErr);
+    return std::unexpected(error_code::pieceLengthFieldNotIntErr);
   if (info.at("piece length").getInt() < 0)
-    return std::unexpected(Error::pieceLengthNegativeErr);
+    return std::unexpected(error_code::pieceLengthNegativeErr);
   if (info.at("piece length").getInt() == 0)
-    return std::unexpected(Error::pieceLengthZeroErr);
+    return std::unexpected(error_code::pieceLengthZeroErr);
   return info.at("piece length").getInt();
 }
 
-std::expected<std::string, Error> TorrentParser::parseName(BencodeDict info) {
+std::expected<std::string, std::error_code>
+TorrentParser::parseName(BencodeDict info) {
   if (!info.contains("name"))
-    return std::unexpected(Error::missingNameFieldErr);
+    return std::unexpected(error_code::missingNameFieldErr);
   if (!info.at("name").isStr())
-    return std::unexpected(Error::nameFieldNotStrErr);
+    return std::unexpected(error_code::nameFieldNotStrErr);
   return info.at("name").getStr();
 }
 
-std::expected<std::string, Error> TorrentParser::parsePieces(BencodeDict info) {
+std::expected<std::string, std::error_code>
+TorrentParser::parsePieces(BencodeDict info) {
   if (!info.contains("pieces"))
-    return std::unexpected(Error::missingPiecesFieldErr);
+    return std::unexpected(error_code::missingPiecesFieldErr);
   if (!info.at("pieces").isStr())
-    return std::unexpected(Error::piecesFieldNotStrErr);
+    return std::unexpected(error_code::piecesFieldNotStrErr);
   return info.at("pieces").getStr();
 }
 
-std::expected<FileMode, Error>
+std::expected<FileMode, std::error_code>
 TorrentParser::validateFileMode(BencodeDict info) {
   if (!info.contains("length") && !info.contains("files"))
-    return std::unexpected(Error::bothLengthAndFilesFieldsMissingErr);
+    return std::unexpected(error_code::bothLengthAndFilesFieldsMissingErr);
   if (info.contains("length") && info.contains("files"))
-    return std::unexpected(Error::bothLengthAndFilesFieldsPresentErr);
+    return std::unexpected(error_code::bothLengthAndFilesFieldsPresentErr);
   return (info.contains("length")) ? FileMode::single : FileMode::multiple;
 }
 
-std::expected<std::size_t, Error> TorrentParser::parseSingle(BencodeDict info) {
+std::expected<std::size_t, std::error_code>
+TorrentParser::parseSingle(BencodeDict info) {
   if (!info.at("length").isInt())
-    return std::unexpected(Error::lengthFieldNotIntErr);
+    return std::unexpected(error_code::lengthFieldNotIntErr);
   if (info.at("length").getInt() < 0)
-    return std::unexpected(Error::singleLengthNegativeErr);
+    return std::unexpected(error_code::singleLengthNegativeErr);
   if (info.at("length").getInt() == 0)
-    return std::unexpected(Error::singleLengthZeroErr);
+    return std::unexpected(error_code::singleLengthZeroErr);
   return info.at("length").getInt();
 }
 
-std::expected<std::vector<FileInfo>, Error>
+std::expected<std::vector<FileInfo>, std::error_code>
 TorrentParser::parseMultiple(BencodeDict info) {
   if (!info.at("files").isList())
-    return std::unexpected(Error::filesFieldNotListErr);
+    return std::unexpected(error_code::filesFieldNotListErr);
 
   std::vector<FileInfo> files;
   auto fileList = info.at("files").getList();
 
   for (auto file : fileList) {
     if (!file.isDict())
-      return std::unexpected(Error::filesFieldItemNotDictErr);
+      return std::unexpected(error_code::filesFieldItemNotDictErr);
     auto fileInfoRes = parseFile(file.getDict());
     if (!fileInfoRes)
       return std::unexpected(fileInfoRes.error());
@@ -193,7 +198,8 @@ TorrentParser::parseMultiple(BencodeDict info) {
   return files;
 }
 
-std::expected<FileInfo, Error> TorrentParser::parseFile(BencodeDict file) {
+std::expected<FileInfo, std::error_code>
+TorrentParser::parseFile(BencodeDict file) {
   auto fileLenghtRes = parseFileLength(file);
   auto filePathRes = parseFilePath(file);
 
@@ -204,31 +210,31 @@ std::expected<FileInfo, Error> TorrentParser::parseFile(BencodeDict file) {
   return FileInfo{*fileLenghtRes, *filePathRes};
 }
 
-std::expected<std::size_t, Error>
+std::expected<std::size_t, std::error_code>
 TorrentParser::parseFileLength(BencodeDict file) {
   if (!file.contains("length"))
-    return std::unexpected(Error::missingFileLengthErr);
+    return std::unexpected(error_code::missingFileLengthErr);
   if (!file.at("length").isInt())
-    return std::unexpected(Error::fileLengthNotIntErr);
+    return std::unexpected(error_code::fileLengthNotIntErr);
   if (file.at("length").getInt() < 0)
-    return std::unexpected(Error::multiLengthNegativeErr);
+    return std::unexpected(error_code::multiLengthNegativeErr);
   if (file.at("length").getInt() == 0)
-    return std::unexpected(Error::multiLengthZeroErr);
+    return std::unexpected(error_code::multiLengthZeroErr);
   return file.at("length").getInt();
 }
 
-std::expected<std::string, Error>
+std::expected<std::string, std::error_code>
 TorrentParser::parseFilePath(BencodeDict file) {
   if (!file.contains("path"))
-    return std::unexpected(Error::missingFilePathErr);
+    return std::unexpected(error_code::missingFilePathErr);
   if (!file.at("path").isList())
-    return std::unexpected(Error::missingFilePathErr);
+    return std::unexpected(error_code::missingFilePathErr);
 
   auto path = file.at("path").getList();
   std::string strPath = "";
   for (auto item : path) {
     if (!item.isStr())
-      return std::unexpected(Error::filePathFragmentNotStrErr);
+      return std::unexpected(error_code::filePathFragmentNotStrErr);
     strPath.append(item.getStr());
   }
   return strPath;

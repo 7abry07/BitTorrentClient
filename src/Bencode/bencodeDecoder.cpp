@@ -11,16 +11,16 @@ BencodeDecoder::expected_val BencodeDecoder::decode(std::string_view input) {
   depth = 0;
   auto result = internal_decode(&input);
   if (result && !input.empty())
-    return std::unexpected(Error::trailingInputErr);
+    return std::unexpected(error_code::trailingInputErr);
   return result;
 }
 
 BencodeDecoder::expected_val
 BencodeDecoder::internal_decode(std::string_view *input) {
   if (++depth == maxDepth)
-    return std::unexpected(Error::maximumNestingLimitExcedeedErr);
+    return std::unexpected(error_code::maximumNestingLimitExcedeedErr);
   if (input->empty())
-    return std::unexpected(Error::emptyInputErr);
+    return std::unexpected(error_code::emptyInputErr);
 
   switch (input->at(0)) {
   case '0':
@@ -37,37 +37,38 @@ BencodeDecoder::internal_decode(std::string_view *input) {
   case '-': {
     auto result = decode_str(input);
     depth--;
-    return result.has_value() ? std::expected<BencodeValue, Error>(
+    return result.has_value() ? std::expected<BencodeValue, std::error_code>(
                                     BencodeValue(result.value()))
-                              : std::unexpected(Error(result.error().code));
+                              : std::unexpected(result.error());
   }
 
   case 'i': {
     auto result = decode_int(input);
     depth--;
-    return result.has_value() ? std::expected<BencodeValue, Error>(
+    return result.has_value() ? std::expected<BencodeValue, std::error_code>(
                                     BencodeValue(result.value()))
-                              : std::unexpected(Error(result.error().code));
+                              : std::unexpected(result.error());
   }
 
   case 'l': {
     auto result = decode_list(input);
     depth--;
-    return result.has_value() ? std::expected<BencodeValue, Error>(
+    return result.has_value() ? std::expected<BencodeValue, std::error_code>(
                                     BencodeValue(result.value()))
-                              : std::unexpected(Error(result.error().code));
+                              : std::unexpected(result.error());
   }
 
   case 'd': {
     auto result = decode_dict(input);
     depth--;
-    return result.has_value() ? std::expected<BencodeValue, Error>(
+    return result.has_value() ? std::expected<BencodeValue, std::error_code>(
                                     BencodeValue(result.value()))
-                              : std::unexpected(Error(result.error().code));
+                              : std::unexpected(result.error());
   }
   }
+
   depth--;
-  return std::unexpected(Error::invalidTypeEncounterErr);
+  return std::unexpected(error_code::invalidTypeEncounterErr);
 }
 
 BencodeDecoder::expected_int
@@ -76,18 +77,17 @@ BencodeDecoder::decode_int(std::string_view *input) {
   input->remove_prefix(1);
   auto int_end = isIntegerValid(*input);
   if (!int_end)
-    return std::unexpected(Error(int_end.error().code));
+    return std::unexpected(int_end.error());
 
   try {
     std::size_t read_bytes = 0;
     int_ = std::stoll(std::string(*input), &read_bytes);
     if (read_bytes < *int_end)
-      return std::unexpected(Error::invalidIntegerErr);
-
-  } catch (std::invalid_argument &e) {
-    return std::unexpected(Error::invalidIntegerErr);
-  } catch (std::out_of_range &e) {
-    return std::unexpected(Error::outOfRangeIntegerErr);
+      return std::unexpected(error_code::invalidIntegerErr);
+  } catch (std::invalid_argument &) {
+    return std::unexpected(error_code::invalidIntegerErr);
+  } catch (std::out_of_range &) {
+    return std::unexpected(error_code::outOfRangeIntegerErr);
   }
 
   input->remove_prefix(*int_end + 1);
@@ -100,22 +100,22 @@ BencodeDecoder::decode_str(std::string_view *input) {
   std::size_t str_len;
   auto len_end = isStringValid(*input);
   if (!len_end)
-    return std::unexpected(Error(len_end.error().code));
+    return std::unexpected(len_end.error());
 
   try {
     std::size_t read_bytes = 0;
     str_len = std::stoll(std::string(*input), &read_bytes);
     if (read_bytes < *len_end)
-      return std::unexpected(Error::invalidStringLengthErr);
-  } catch (std::invalid_argument &e) {
-    return std::unexpected(Error::invalidStringLengthErr);
-  } catch (std::out_of_range &e) {
-    return std::unexpected(Error::stringTooLargeErr);
+      return std::unexpected(error_code::invalidStringLengthErr);
+  } catch (std::invalid_argument &) {
+    return std::unexpected(error_code::invalidStringLengthErr);
+  } catch (std::out_of_range &) {
+    return std::unexpected(error_code::stringTooLargeErr);
   }
 
   std::string_view str = input->substr(*len_end + 1, str_len);
   if (str.length() < str_len)
-    return std::unexpected(Error::lengthMismatchErr);
+    return std::unexpected(error_code::lengthMismatchErr);
 
   str_.append(input->substr(*len_end + 1, str_len));
   input->remove_prefix(*len_end + 1 + str_len);
@@ -129,7 +129,7 @@ BencodeDecoder::decode_list(std::string_view *input) {
 
   for (;;) {
     if (input->length() == 0)
-      return std::unexpected(Error::missingListTerminatorErr);
+      return std::unexpected(error_code::missingListTerminatorErr);
     if (input->at(0) == 'e') {
       input->remove_prefix(1);
       return list_;
@@ -137,9 +137,9 @@ BencodeDecoder::decode_list(std::string_view *input) {
 
     auto result = internal_decode(input);
     if (!result)
-      return (result.error().code == Error::maximumNestingLimitExcedeedErr)
-                 ? std::unexpected(Error::maximumNestingLimitExcedeedErr)
-                 : std::unexpected(Error::invalidListElementErr);
+      return (result.error() == error_code::maximumNestingLimitExcedeedErr)
+                 ? std::unexpected(error_code::maximumNestingLimitExcedeedErr)
+                 : std::unexpected(error_code::invalidListElementErr);
     list_.push_back(result.value());
   }
 }
@@ -151,7 +151,7 @@ BencodeDecoder::decode_dict(std::string_view *input) {
 
   for (;;) {
     if (input->length() == 0)
-      return std::unexpected(Error::missingDictTerminatorErr);
+      return std::unexpected(error_code::missingDictTerminatorErr);
     if (input->at(0) == 'e') {
       input->remove_prefix(1);
       return dict_;
@@ -159,17 +159,17 @@ BencodeDecoder::decode_dict(std::string_view *input) {
 
     auto key_result = internal_decode(input);
     if (!key_result)
-      return std::unexpected(Error(key_result.error().code));
+      return std::unexpected(key_result.error());
     if (!key_result->isStr())
-      return std::unexpected(Error::nonStringKeyErr);
+      return std::unexpected(error_code::nonStringKeyErr);
 
     auto val_result = internal_decode(input);
     if (!val_result)
-      return std::unexpected(Error(val_result.error().code));
+      return std::unexpected(val_result.error());
 
     auto insert_result = dict_.emplace(key_result->getStr(), *val_result);
     if (!insert_result.second)
-      return std::unexpected(Error::duplicateKeyErr);
+      return std::unexpected(error_code::duplicateKeyErr);
   }
 }
 
@@ -178,12 +178,12 @@ BencodeDecoder::isIntegerValid(std::string_view input) {
   std::size_t int_end = input.find('e');
 
   if (int_end == std::string::npos)
-    return std::unexpected(Error::missingIntegerTerminatorErr);
+    return std::unexpected(error_code::missingIntegerTerminatorErr);
   if (hasLeadingZeroes(input.substr(0, int_end)) ||
       isNegativeZero(input.substr(0, int_end)))
-    return std::unexpected(Error::invalidIntegerErr);
+    return std::unexpected(error_code::invalidIntegerErr);
   if (input.at(0) == '+')
-    return std::unexpected(Error::invalidIntegerErr);
+    return std::unexpected(error_code::invalidIntegerErr);
 
   return int_end;
 }
@@ -193,13 +193,13 @@ BencodeDecoder::isStringValid(std::string_view input) {
   std::size_t len_end = input.find(':');
 
   if (len_end == std::string::npos)
-    return std::unexpected(Error::missingColonErr);
+    return std::unexpected(error_code::missingColonErr);
   if (hasLeadingZeroes(input.substr(0, len_end)))
-    return std::unexpected(Error::invalidStringLengthErr);
+    return std::unexpected(error_code::invalidStringLengthErr);
   if (input.at(0) == '-')
-    return std::unexpected(Error::negativeStringLengthErr);
+    return std::unexpected(error_code::negativeStringLengthErr);
   if (input.at(0) == '+')
-    return std::unexpected(Error::signedStringLengthErr);
+    return std::unexpected(error_code::signedStringLengthErr);
 
   return len_end;
 }
@@ -207,8 +207,10 @@ BencodeDecoder::isStringValid(std::string_view input) {
 bool BencodeDecoder::hasLeadingZeroes(std::string_view input) {
   return (input.size() > 1 && input.at(0) == '0');
 }
+
 bool BencodeDecoder::isNegativeZero(std::string_view input) {
   return input.size() >= 2 && input.substr(0, 2) == "-0";
 }
 
 } // namespace btc
+  // namespace btc
