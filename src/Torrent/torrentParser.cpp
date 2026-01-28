@@ -7,12 +7,11 @@
 #include <iterator>
 #include <openssl/sha.h>
 #include <optional>
-#include <system_error>
 #include <vector>
 
 namespace btc {
 
-std::expected<TorrentFile, std::error_code>
+TorrentParser::exp_torrentfile
 TorrentParser::parseFile(std::filesystem::path path, BencodeDecoder decoder) {
   std::fstream file(path);
   if (!file)
@@ -27,7 +26,7 @@ TorrentParser::parseFile(std::filesystem::path path, BencodeDecoder decoder) {
   return parseContent(content, decoder);
 }
 
-std::expected<TorrentFile, std::error_code>
+TorrentParser::exp_torrentfile
 TorrentParser::parseContent(std::string content, BencodeDecoder decoder) {
   auto bencodeRes = decoder.decode(content);
   if (!bencodeRes)
@@ -119,8 +118,7 @@ TorrentParser::parseContent(std::string content, BencodeDecoder decoder) {
   return file;
 }
 
-std::expected<std::string, std::error_code>
-TorrentParser::parseAnnounce(BencodeDict root) {
+TorrentParser::exp_string TorrentParser::parseAnnounce(BencodeDict root) {
   if (!root.contains("announce"))
     return std::unexpected(error_code::missingAnnounceKeyErr);
   if (!root.at("announce").isStr())
@@ -128,8 +126,7 @@ TorrentParser::parseAnnounce(BencodeDict root) {
   return root.at("announce").getStr();
 }
 
-std::expected<std::size_t, std::error_code>
-TorrentParser::parsePieceLength(BencodeDict info) {
+TorrentParser::exp_sizet TorrentParser::parsePieceLength(BencodeDict info) {
   if (!info.contains("piece length"))
     return std::unexpected(error_code::missingPieceLengthFieldErr);
   if (!info.at("piece length").isInt())
@@ -141,8 +138,7 @@ TorrentParser::parsePieceLength(BencodeDict info) {
   return info.at("piece length").getInt();
 }
 
-std::expected<std::string, std::error_code>
-TorrentParser::parseName(BencodeDict info) {
+TorrentParser::exp_string TorrentParser::parseName(BencodeDict info) {
   if (!info.contains("name"))
     return std::unexpected(error_code::missingNameFieldErr);
   if (!info.at("name").isStr())
@@ -150,8 +146,7 @@ TorrentParser::parseName(BencodeDict info) {
   return info.at("name").getStr();
 }
 
-std::expected<std::string, std::error_code>
-TorrentParser::parsePieces(BencodeDict info) {
+TorrentParser::exp_string TorrentParser::parsePieces(BencodeDict info) {
   if (!info.contains("pieces"))
     return std::unexpected(error_code::missingPiecesFieldErr);
   if (!info.at("pieces").isStr())
@@ -159,8 +154,7 @@ TorrentParser::parsePieces(BencodeDict info) {
   return info.at("pieces").getStr();
 }
 
-std::expected<FileMode, std::error_code>
-TorrentParser::validateFileMode(BencodeDict info) {
+TorrentParser::exp_filemode TorrentParser::validateFileMode(BencodeDict info) {
   if (!info.contains("length") && !info.contains("files"))
     return std::unexpected(error_code::bothLengthAndFilesFieldsMissingErr);
   if (info.contains("length") && info.contains("files"))
@@ -168,8 +162,7 @@ TorrentParser::validateFileMode(BencodeDict info) {
   return (info.contains("length")) ? FileMode::single : FileMode::multiple;
 }
 
-std::expected<std::size_t, std::error_code>
-TorrentParser::parseSingle(BencodeDict info) {
+TorrentParser::exp_sizet TorrentParser::parseSingle(BencodeDict info) {
   if (!info.at("length").isInt())
     return std::unexpected(error_code::lengthFieldNotIntErr);
   if (info.at("length").getInt() < 0)
@@ -179,8 +172,7 @@ TorrentParser::parseSingle(BencodeDict info) {
   return info.at("length").getInt();
 }
 
-std::expected<std::vector<FileInfo>, std::error_code>
-TorrentParser::parseMultiple(BencodeDict info) {
+TorrentParser::exp_files TorrentParser::parseMultiple(BencodeDict info) {
   if (!info.at("files").isList())
     return std::unexpected(error_code::filesFieldNotListErr);
 
@@ -198,8 +190,7 @@ TorrentParser::parseMultiple(BencodeDict info) {
   return files;
 }
 
-std::expected<FileInfo, std::error_code>
-TorrentParser::parseFile(BencodeDict file) {
+TorrentParser::exp_fileinfo TorrentParser::parseFile(BencodeDict file) {
   auto fileLenghtRes = parseFileLength(file);
   auto filePathRes = parseFilePath(file);
 
@@ -210,8 +201,7 @@ TorrentParser::parseFile(BencodeDict file) {
   return FileInfo{*fileLenghtRes, *filePathRes};
 }
 
-std::expected<std::size_t, std::error_code>
-TorrentParser::parseFileLength(BencodeDict file) {
+TorrentParser::exp_sizet TorrentParser::parseFileLength(BencodeDict file) {
   if (!file.contains("length"))
     return std::unexpected(error_code::missingFileLengthErr);
   if (!file.at("length").isInt())
@@ -223,8 +213,7 @@ TorrentParser::parseFileLength(BencodeDict file) {
   return file.at("length").getInt();
 }
 
-std::expected<std::string, std::error_code>
-TorrentParser::parseFilePath(BencodeDict file) {
+TorrentParser::exp_string TorrentParser::parseFilePath(BencodeDict file) {
   if (!file.contains("path"))
     return std::unexpected(error_code::missingFilePathErr);
   if (!file.at("path").isList())
@@ -240,7 +229,7 @@ TorrentParser::parseFilePath(BencodeDict file) {
   return strPath;
 }
 
-std::optional<std::string> TorrentParser::parseComment(BencodeDict root) {
+TorrentParser::opt_string TorrentParser::parseComment(BencodeDict root) {
   if (!root.contains("comment"))
     return std::nullopt;
   if (!root.at("comment").isStr())
@@ -248,7 +237,7 @@ std::optional<std::string> TorrentParser::parseComment(BencodeDict root) {
   return root.at("comment").getStr();
 }
 
-std::optional<std::string> TorrentParser::parseCreatedBy(BencodeDict root) {
+TorrentParser::opt_string TorrentParser::parseCreatedBy(BencodeDict root) {
   if (!root.contains("created by"))
     return std::nullopt;
   if (!root.at("created by").isStr())
@@ -256,7 +245,7 @@ std::optional<std::string> TorrentParser::parseCreatedBy(BencodeDict root) {
   return root.at("created by").getStr();
 }
 
-std::optional<std::string> TorrentParser::parseEncoding(BencodeDict root) {
+TorrentParser::opt_string TorrentParser::parseEncoding(BencodeDict root) {
   if (!root.contains("encoding"))
     return std::nullopt;
   if (!root.at("encoding").isStr())
@@ -264,8 +253,7 @@ std::optional<std::string> TorrentParser::parseEncoding(BencodeDict root) {
   return root.at("encoding").getStr();
 }
 
-std::optional<TorrentParser::Date>
-TorrentParser::parseCreationDate(BencodeDict root) {
+TorrentParser::opt_date TorrentParser::parseCreationDate(BencodeDict root) {
   if (!root.contains("creation date"))
     return std::nullopt;
   if (!root.at("creation date").isInt())
@@ -277,7 +265,7 @@ TorrentParser::parseCreationDate(BencodeDict root) {
   return std::chrono::year_month_day{days};
 }
 
-std::optional<std::vector<std::string>>
+TorrentParser::opt_stringlist
 TorrentParser::parseAnnounceList(BencodeDict root) {
   if (!root.contains("announce-list"))
     return std::nullopt;
