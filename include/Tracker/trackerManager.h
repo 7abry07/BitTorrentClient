@@ -3,7 +3,6 @@
 #include <Tracker/httpTrackerSession.h>
 #include <cstdint>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 namespace btc {
@@ -41,15 +40,6 @@ struct TrackerResponse {
   std::vector<Peer> peerList;
 };
 
-class TrackerManager {
-
-public:
-  TrackerResponse send(TrackerRequest &req);
-
-private:
-  void createHttpSession();
-
-  std::unordered_map<std::string, HttpTrackerSession> httpSessions;
-};
+class TrackerManager {};
 
 } // namespace btc

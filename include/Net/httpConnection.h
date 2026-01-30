@@ -2,7 +2,6 @@
 
 #include <boost/asio.hpp>
 #include <boost/beast.hpp>
-#include <boost/system.hpp>
 
 #include <errors.h>
 #include <expected>
@@ -16,7 +15,6 @@ class HttpConnection {
 private:
   using exp_connection = std::expected<HttpConnection, std::error_code>;
   using response = http::response<http::dynamic_body>;
-
   using await_exp_connection = net::awaitable<exp_connection>;
   using await_response = net::awaitable<response>;
 
