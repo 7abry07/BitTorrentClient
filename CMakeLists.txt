@@ -32,9 +32,14 @@ enable_testing()
 add_library(btc_core)
 target_sources(
   btc_core
-  PRIVATE src/Bencode/bencodeValue.cpp src/Bencode/bencodeDecoder.cpp
-          src/Bencode/bencodeEncoder.cpp src/Torrent/torrentParser.cpp
-          src/Net/httpConnection.cpp src/errors.cpp)
+  PRIVATE src/Bencode/bencodeValue.cpp
+          src/Bencode/bencodeDecoder.cpp
+          src/Bencode/bencodeEncoder.cpp
+          src/Torrent/torrentParser.cpp
+          src/Torrent/infoHash.cpp
+          src/Net/httpConnection.cpp
+          src/Tracker/trackerManager.cpp
+          src/errors.cpp)
 
 target_include_directories(btc_core PUBLIC ${CMAKE_SOURCE_DIR}/include)
 target_link_libraries(btc_core PUBLIC OpenSSL::SSL OpenSSL::Crypto)

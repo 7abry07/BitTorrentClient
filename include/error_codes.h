@@ -77,6 +77,13 @@ enum error_code {
 
   bothLengthAndFilesFieldsMissingErr,
   bothLengthAndFilesFieldsPresentErr,
+
+  // ---------------------------------
+  // TRACKER
+  // ---------------------------------
+
+  invalidUrlSchemeErr,
+  trackerResponseNotDictErr
 };
 
 static const std::unordered_map<error_code, std::string> err_mess = {
@@ -146,6 +153,12 @@ static const std::unordered_map<error_code, std::string> err_mess = {
      "Both length and files fields are missing."},
     {bothLengthAndFilesFieldsPresentErr,
      "Both length and files fields are present; only one allowed."},
-};
+
+    // ---------------------------------
+    // TRACKER
+    // ---------------------------------
+
+    {invalidUrlSchemeErr, "the announce url scheme was neither http or udp"},
+    {trackerResponseNotDictErr, "the tracker response was not a dictionary"}};
 
 } // namespace btc
