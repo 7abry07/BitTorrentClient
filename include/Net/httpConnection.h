@@ -1,9 +1,5 @@
 #pragma once
 
-#include <boost/asio.hpp>
-#include <boost/beast.hpp>
-
-#include <errors.h>
 #include <expected>
 #include <helpers.h>
 #include <system_error>
@@ -14,12 +10,13 @@ class HttpConnection {
 
 private:
   using exp_connection = std::expected<HttpConnection, std::error_code>;
-  using response = http::response<http::dynamic_body>;
+  using exp_response =
+      std::expected<http::response<http::dynamic_body>, std::error_code>;
   using await_exp_connection = net::awaitable<exp_connection>;
-  using await_response = net::awaitable<response>;
+  using await_exp_response = net::awaitable<exp_response>;
 
 public:
-  await_response get(std::string url);
+  await_exp_response get(std::string url);
   static await_exp_connection connect(net::io_context &ctx,
                                       std::string hostname, port_t port);
 

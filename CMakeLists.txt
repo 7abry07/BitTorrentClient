@@ -23,7 +23,10 @@ set(gtest_force_shared_crt
     ON
     CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
+
+find_package(Boost REQUIRED COMPONENTS system url)
 find_package(OpenSSL REQUIRED)
+
 enable_testing()
 
 add_library(btc_core)
@@ -35,6 +38,7 @@ target_sources(
 
 target_include_directories(btc_core PUBLIC ${CMAKE_SOURCE_DIR}/include)
 target_link_libraries(btc_core PUBLIC OpenSSL::SSL OpenSSL::Crypto)
+target_link_libraries(btc_core PRIVATE Boost::system Boost::url)
 
 add_executable(btc src/main.cpp)
 target_link_libraries(btc PRIVATE btc_core)

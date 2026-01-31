@@ -1,6 +1,4 @@
 #include <Net/httpConnection.h>
-#include <helpers.h>
-#include <string>
 
 namespace btc {
 
@@ -26,19 +24,12 @@ HttpConnection::connect(net::io_context &ctx, std::string hostname,
   co_return conn;
 }
 
-HttpConnection::await_response HttpConnection::get(std::string url) {
-  auto hostnamePos = url.find("://");
-  if (hostnamePos == std::string::npos)
-    co_return http::response<http::dynamic_body>();
+HttpConnection::await_exp_response HttpConnection::get(std::string url) {
+  sys::result<url_view> r = urls::parse_uri(std::string_view(url));
+  if (r.has_error())
+    co_return std::unexpected(r.error());
 
-  auto rest = url.substr(hostnamePos + 3);
-  auto targetPos = rest.find("/");
-  if (hostnamePos == std::string::npos)
-    co_return http::response<http::dynamic_body>();
-
-  std::string target = rest.substr(targetPos);
-
-  http::request<http::string_body> req{http::verb::get, target, 11};
+  http::request<http::string_body> req{http::verb::get, r.value().path(), 11};
   req.set(http::field::host, hostname);
   req.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
 
@@ -46,16 +37,14 @@ HttpConnection::await_response HttpConnection::get(std::string url) {
   co_await http::async_write(stream, req,
                              net::redirect_error(net::use_awaitable, ec));
   if (ec)
-    co_return http::response<http::dynamic_body>();
+    co_return std::unexpected(ec);
 
   beast::flat_buffer buf;
   http::response<http::dynamic_body> resp;
-
   co_await http::async_read(stream, buf, resp,
                             net::redirect_error(net::use_awaitable, ec));
-
   if (ec)
-    co_return http::response<http::dynamic_body>();
+    co_return std::unexpected(ec);
 
   co_return resp;
 }
