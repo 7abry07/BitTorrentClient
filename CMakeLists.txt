@@ -36,7 +36,6 @@ target_sources(
           src/Bencode/bencodeDecoder.cpp
           src/Bencode/bencodeEncoder.cpp
           src/Torrent/torrentParser.cpp
-          src/Torrent/infoHash.cpp
           src/Net/httpConnection.cpp
           src/Tracker/trackerManager.cpp
           src/errors.cpp)

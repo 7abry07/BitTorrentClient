@@ -2,11 +2,6 @@
 #include <Net/httpConnection.h>
 #include <Tracker/trackerManager.h>
 #include <array>
-#include <boost/beast/core/buffers_to_string.hpp>
-#include <boost/beast/http/dynamic_body_fwd.hpp>
-#include <boost/beast/http/message_fwd.hpp>
-#include <boost/url/encode.hpp>
-#include <boost/url/rfc/unreserved_chars.hpp>
 #include <cstdint>
 #include <errors.h>
 #include <expected>

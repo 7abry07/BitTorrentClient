@@ -1,6 +1,5 @@
 #pragma once
 
-#include "Torrent/infoHash.h"
 #include <boost/asio/io_context.hpp>
 #include <boost/beast/http/dynamic_body_fwd.hpp>
 #include <boost/beast/http/message_fwd.hpp>
