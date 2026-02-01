@@ -1,8 +1,6 @@
 #pragma once
 
-#include <boost/asio/io_context.hpp>
-#include <boost/beast/http/dynamic_body_fwd.hpp>
-#include <boost/beast/http/message_fwd.hpp>
+#include <Torrent/peer.h>
 #include <cstdint>
 #include <expected>
 #include <helpers.h>
@@ -11,10 +9,6 @@
 #include <vector>
 
 namespace btc {
-
-class Peer {
-  std::string peerid;
-};
 
 enum class eventType { None = 0, Completed, Started, Stopped };
 enum class requestKind { Announce = 0, Scrape };

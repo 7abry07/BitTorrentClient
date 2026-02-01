@@ -83,7 +83,7 @@ enum error_code {
   // ---------------------------------
 
   invalidUrlSchemeErr,
-  trackerResponseNotDictErr
+  invalidTrackerResponseErr
 };
 
 static const std::unordered_map<error_code, std::string> err_mess = {
@@ -159,6 +159,5 @@ static const std::unordered_map<error_code, std::string> err_mess = {
     // ---------------------------------
 
     {invalidUrlSchemeErr, "the announce url scheme was neither http or udp"},
-    {trackerResponseNotDictErr, "the tracker response was not a dictionary"}};
-
+    {invalidTrackerResponseErr, "the tracker response is invalid"}};
 } // namespace btc
