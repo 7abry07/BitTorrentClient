@@ -1,4 +1,6 @@
 #include <Net/httpConnection.h>
+#include <boost/beast/http/field.hpp>
+#include <boost/beast/version.hpp>
 
 namespace btc {
 
@@ -29,7 +31,8 @@ HttpConnection::await_exp_response HttpConnection::get(std::string url) {
   if (r.has_error())
     co_return std::unexpected(r.error());
 
-  http::request<http::string_body> req{http::verb::get, r.value().path(), 11};
+  http::request<http::string_body> req{http::verb::get, r->encoded_target(),
+                                       11};
   req.set(http::field::host, hostname);
   req.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
 

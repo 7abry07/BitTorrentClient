@@ -56,10 +56,6 @@ TrackerManager::httpSend(TrackerRequest req) {
 
   url.set_encoded_query(std::string_view(q));
 
-  // ---
-  std::println("{}", std::string(url.buffer()));
-  // ---
-
   auto httpResp = co_await conn->get(url.buffer());
   if (!httpResp)
     co_return std::unexpected(httpResp.error());
@@ -92,7 +88,8 @@ TrackerManager::exp_tracker_resp TrackerManager::parseHttpResponse(
   trackerResp.interval = root.at("interval").getInt();
   if (root.contains("min interval") && root.at("min interval").isInt())
     trackerResp.minInterval = root.at("min interval").getInt();
-  trackerResp.trackerID = root.at("tracker id").getStr();
+  if (root.contains("tracker id") && root.at("tracker id").isInt())
+    trackerResp.trackerID = root.at("tracker id").getStr();
   trackerResp.complete = root.at("complete").getInt();
   trackerResp.incomplete = root.at("incomplete").getInt();
 
