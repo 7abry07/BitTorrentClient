@@ -10,7 +10,7 @@ using torrentParser = btc::TorrentParser;
 using torrentFile = btc::TorrentFile;
 using bencodeDecoder = btc::BencodeDecoder;
 
-#define TEST_PATH "../testFiles/naruto.torrent"
+#define TEST_PATH "testFiles/naruto.torrent"
 
 #define ASSERT_OK(expr) ASSERT_TRUE((expr).has_value())
 #define EXPECT_ERR(expr, err)                                                  \

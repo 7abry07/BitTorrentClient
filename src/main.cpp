@@ -5,7 +5,7 @@
 #include <helpers.h>
 #include <print>
 
-#define TEST_PATH "../testFiles/naruto.torrent"
+#define TEST_PATH "testFiles/naruto.torrent"
 
 namespace urls = btc::urls;
 using torrentParser = btc::TorrentParser;

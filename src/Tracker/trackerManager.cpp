@@ -8,7 +8,6 @@
 #include <errors.h>
 #include <expected>
 #include <sys/types.h>
-#include <system_error>
 
 namespace btc {
 
