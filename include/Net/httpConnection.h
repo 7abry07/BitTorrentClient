@@ -19,6 +19,7 @@ public:
   await_exp_response get(std::string url);
   static await_exp_connection connect(net::io_context &ctx,
                                       std::string hostname, port_t port);
+  void close();
 
 private:
   HttpConnection(net::io_context &ctx, std::string hostname, port_t port)
