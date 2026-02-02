@@ -1,13 +1,14 @@
-#include "Bencode/bencodeDecoder.h"
-#include "Bencode/bencodeValue.h"
-#include "error_codes.h"
+#include <Bencode/bencodeDecoder.h>
 #include <Net/httpConnection.h>
+#include <Torrent/peer.h>
 #include <Tracker/trackerManager.h>
 #include <array>
 #include <cstdint>
 #include <errors.h>
 #include <expected>
+#include <optional>
 #include <sys/types.h>
+#include <vector>
 
 namespace btc {
 
@@ -19,6 +20,7 @@ TrackerManager::send(TrackerRequest req) {
       co_return std::unexpected(resp.error());
     co_return resp;
   } else if (req.url.scheme() == "udp") {
+    // UDP
     // TODO
     co_return TrackerResponse();
   }
@@ -34,11 +36,10 @@ TrackerManager::httpSend(TrackerRequest req) {
 
   urls::url url = req.url;
   std::string q = "";
-  if (req.kind == requestKind::Announce) {
 
+  if (req.kind == requestKind::Announce) {
     std::array<std::string, 4> eventStr{"none", "completed", "started",
                                         "stopped"};
-
     appendQuery(q, "info_hash", req.infoHash, true);
     appendQuery(q, "peer_id", req.pID);
     appendQuery(q, "port", req.port);
@@ -49,16 +50,12 @@ TrackerManager::httpSend(TrackerRequest req) {
     appendQuery(q, "no_peer_id", req.no_pID);
     appendQuery(q, "event", eventStr[static_cast<int>(req.event)]);
     appendQuery(q, "numwant", req.numwant);
-
-    if (req.ip != "")
-      appendQuery(q, "ip", req.ip);
-    if (req.key != 0)
-      appendQuery(q, "key", req.key);
-    if (req.trackerID != "")
-      appendQuery(q, "trackerid", req.trackerID);
-
+    appendQuery(q, "ip", req.ip);
+    appendQuery(q, "key", req.key);
+    appendQuery(q, "trackerid", req.trackerID);
     url.set_encoded_query(std::string_view(q));
   } else {
+    // Scrape
     // TODO
   }
 
@@ -66,39 +63,39 @@ TrackerManager::httpSend(TrackerRequest req) {
   if (!httpResp)
     co_return std::unexpected(httpResp.error());
 
-  auto resp = parseHttpResponse(httpResp.value());
-  if (!resp)
-    co_return std::unexpected(resp.error());
-
-  co_return resp;
+  if (req.kind == requestKind::Announce) {
+    auto resp = TrackerResponse::parseHttpAnnounce(httpResp.value());
+    co_return !resp ? std::unexpected(resp.error()) : resp;
+  } else {
+    // Scrape
+    // TODO
+  }
+  co_return std::unexpected(error_code::invalidTrackerResponseErr);
 }
 
-TrackerManager::exp_tracker_resp TrackerManager::parseHttpResponse(
-    const http::response<http::dynamic_body> &resp) {
+void TrackerManager::appendQuery(std::string &fullq, std::string k,
+                                 std::string v, bool first) {
+  if (!first)
+    fullq.append("&");
+  fullq.append(k + "=" + urls::encode(v, urls::unreserved_chars));
+}
+
+void TrackerManager::appendQuery(std::string &fullq, std::string k,
+                                 std::int64_t v, bool first) {
+  appendQuery(fullq, k, std::to_string(v), first);
+}
+
+// ----------------------------------------------
+// TRACKER RESPONSE
+// ----------------------------------------------
+
+TrackerResponse::exp_tracker_resp
+TrackerResponse::parseHttpAnnounce(const http_resp &resp) {
   TrackerResponse trackerResp;
-  BencodeDecoder decoder;
-  auto nodeRes = decoder.decode(beast::buffers_to_string(resp.body().cdata()));
-
-  if (!nodeRes)
-    return std::unexpected(nodeRes.error());
-  if (!nodeRes->isDict())
+  auto result = TrackerResponse::validateTopLevHttpAnnounce(resp);
+  if (!result)
     return std::unexpected(error_code::invalidTrackerResponseErr);
-
-  b_dict root = nodeRes.value().getDict();
-
-  if (root.contains("failure reason") && root.at("failure reason").isStr()) {
-    trackerResp.failure = root.at("failure reason").getStr();
-    return trackerResp;
-  }
-
-  if (!(root.contains("interval") && root.at("interval").isInt()))
-    return std::unexpected(error_code::invalidTrackerResponseErr);
-  if (!(root.contains("complete") && root.at("complete").isInt()))
-    return std::unexpected(error_code::invalidTrackerResponseErr);
-  if (!(root.contains("incomplete") && root.at("incomplete").isInt()))
-    return std::unexpected(error_code::invalidTrackerResponseErr);
-  if (!(root.contains("peers") && root.at("peers").isStr()))
-    return std::unexpected(error_code::invalidTrackerResponseErr);
+  b_dict root = result.value();
 
   trackerResp.interval = root.at("interval").getInt();
   trackerResp.complete = root.at("complete").getInt();
@@ -117,6 +114,26 @@ TrackerManager::exp_tracker_resp TrackerManager::parseHttpResponse(
           : "";
 
   if (root.contains("peers") && root.at("peers").isStr()) {
+    auto peerRes = TrackerResponse::parsePeers(root);
+    if (!peerRes)
+      return std::unexpected(error_code::invalidTrackerResponseErr);
+    trackerResp.peerList = std::move(peerRes.value());
+
+  } else if (root.contains("peers") && root.at("peers").isList()) {
+    auto peerRes = TrackerResponse::parsePeers(root, false);
+    if (!peerRes)
+      return std::unexpected(error_code::invalidTrackerResponseErr);
+    trackerResp.peerList = std::move(peerRes.value());
+  } else {
+    return std::unexpected(error_code::invalidTrackerResponseErr);
+  }
+  return trackerResp;
+}
+
+TrackerResponse::opt_peers TrackerResponse::parsePeers(b_dict root,
+                                                       bool compact) {
+  std::vector<Peer> peerList;
+  if (compact) {
     std::string_view peersView = root.at("peers").getStr();
 
     while (peersView.size() != 0) {
@@ -124,56 +141,68 @@ TrackerManager::exp_tracker_resp TrackerManager::parseHttpResponse(
       unsigned char ip[4];
       unsigned char port[2];
 
-      ip[0] = peerView.at(0) & 0xff;
-      ip[1] = (peerView.at(1) >> 8) & 0xff;
-      ip[2] = (peerView.at(2) >> 16) & 0xff;
-      ip[3] = (peerView.at(3) >> 24) & 0xff;
+      ip[0] = static_cast<unsigned char>(peerView.at(0));
+      ip[1] = static_cast<unsigned char>(peerView.at(1));
+      ip[2] = static_cast<unsigned char>(peerView.at(2));
+      ip[3] = static_cast<unsigned char>(peerView.at(3));
 
-      port[0] = peerView.at(0) & 0xff;
-      port[1] = (peerView.at(0) >> 8) & 0xff;
+      port[0] = static_cast<unsigned char>(peerView.at(4));
+      port[1] = static_cast<unsigned char>(peerView.at(5));
 
       Peer peer{};
       peer.ip = std::format("{}.{}.{}.{}", ip[3], ip[2], ip[1], ip[0]);
       peer.port = port_t(port[0]) | port_t(port[1]) << 8;
 
       peersView.remove_prefix(6);
-      trackerResp.peerList.push_back(peer);
+      peerList.push_back(peer);
     }
-  } else if (root.contains("peers") && root.at("peers").isList()) {
+  } else {
     b_list peers = root.at("peers").getList();
     for (auto node : peers) {
       Peer peer{};
 
       if (!node.isDict())
-        return std::unexpected(error_code::invalidTrackerResponseErr);
+        return std::nullopt;
       b_dict peerNode = node.getDict();
       if (!(peerNode.contains("peer id") && peerNode.at("peer id").isStr()))
-        return std::unexpected(error_code::invalidTrackerResponseErr);
+        return std::nullopt;
       if (!(peerNode.contains("ip") && peerNode.at("ip").isStr()))
-        return std::unexpected(error_code::invalidTrackerResponseErr);
+        return std::nullopt;
       if (!(peerNode.contains("port") && peerNode.at("port").isInt()))
-        return std::unexpected(error_code::invalidTrackerResponseErr);
+        return std::nullopt;
 
       peer.pID = peerNode.at("peer id").getStr();
       peer.ip = peerNode.at("ip").getStr();
       peer.port = peerNode.at("port").getInt();
 
-      trackerResp.peerList.push_back(peer);
+      peerList.push_back(peer);
     }
   }
-  return trackerResp;
+  return peerList;
 }
 
-void TrackerManager::appendQuery(std::string &fullq, std::string k,
-                                 std::string v, bool first) {
-  if (!first)
-    fullq.append("&");
-  fullq.append(k + "=" + urls::encode(v, urls::unreserved_chars));
-}
+TrackerResponse::opt_bdict
+TrackerResponse::validateTopLevHttpAnnounce(const http_resp &resp) {
+  BencodeDecoder decoder;
+  auto nodeRes = decoder.decode(beast::buffers_to_string(resp.body().cdata()));
 
-void TrackerManager::appendQuery(std::string &fullq, std::string k,
-                                 std::int64_t v, bool first) {
-  appendQuery(fullq, k, std::to_string(v), first);
+  if (!nodeRes)
+    return std::nullopt;
+  if (!nodeRes->isDict())
+    return std::nullopt;
+
+  b_dict root = nodeRes.value().getDict();
+
+  if (!(root.contains("interval") && root.at("interval").isInt()))
+    return std::nullopt;
+  if (!(root.contains("complete") && root.at("complete").isInt()))
+    return std::nullopt;
+  if (!(root.contains("incomplete") && root.at("incomplete").isInt()))
+    return std::nullopt;
+  if (!(root.contains("peers") && root.at("peers").isStr()))
+    return std::nullopt;
+
+  return root;
 }
 
 } // namespace btc

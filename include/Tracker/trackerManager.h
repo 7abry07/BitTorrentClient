@@ -1,5 +1,6 @@
 #pragma once
 
+#include <Bencode/bencodeValue.h>
 #include <Torrent/peer.h>
 #include <cstdint>
 #include <expected>
@@ -9,6 +10,10 @@
 #include <vector>
 
 namespace btc {
+
+class TrackerManager;
+struct TrackerResponse;
+struct TrackerRequest;
 
 enum class eventType { None = 0, Completed, Started, Stopped };
 enum class requestKind { Announce = 0, Scrape };
@@ -33,6 +38,15 @@ struct TrackerRequest {
 };
 
 struct TrackerResponse {
+  friend TrackerManager;
+
+private:
+  using http_resp = http::response<http::dynamic_body>;
+  using exp_tracker_resp = std::expected<TrackerResponse, std::error_code>;
+  using opt_peers = std::optional<std::vector<Peer>>;
+  using opt_bdict = std::optional<b_dict>;
+
+public:
   std::string failure;
   std::string warning;
   std::string trackerID;
@@ -42,6 +56,12 @@ struct TrackerResponse {
   std::uint64_t incomplete = 0;
   std::uint64_t downloaded = 0;
   std::vector<Peer> peerList;
+
+private:
+  static exp_tracker_resp parseHttpAnnounce(const http_resp &resp);
+  static opt_bdict validateTopLevHttpAnnounce(const http_resp &resp);
+
+  static opt_peers parsePeers(b_dict root, bool compact = true);
 };
 
 class TrackerManager {
@@ -62,8 +82,6 @@ private:
   void appendQuery(std::string &fullq, std::string k, std::int64_t v,
                    bool first = false);
   await_exp_tracker_resp httpSend(TrackerRequest req);
-  exp_tracker_resp
-  parseHttpResponse(const http::response<http::dynamic_body> &resp);
 };
 
 } // namespace btc
