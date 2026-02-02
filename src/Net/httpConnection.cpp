@@ -52,6 +52,4 @@ HttpConnection::await_exp_response HttpConnection::get(std::string url) {
   co_return resp;
 }
 
-void HttpConnection::close() { stream.close(); }
-
 } // namespace btc

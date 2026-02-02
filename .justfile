@@ -1,5 +1,13 @@
 set quiet := true
 
+alias rub := run
+alias reb := rebuild
+alias b := build
+alias r := run
+alias d := debug
+alias v := valg
+alias t := test
+
 # run the executable
 run:
     ./build/btc

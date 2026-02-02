@@ -64,7 +64,7 @@ TrackerManager::httpSend(TrackerRequest req) {
     co_return std::unexpected(httpResp.error());
 
   if (req.kind == requestKind::Announce) {
-    auto resp = TrackerResponse::parseHttpAnnounce(httpResp.value());
+    auto resp = TrackerResponse::parseAnnounceHttp(httpResp.value());
     co_return !resp ? std::unexpected(resp.error()) : resp;
   } else {
     // Scrape
@@ -90,9 +90,9 @@ void TrackerManager::appendQuery(std::string &fullq, std::string k,
 // ----------------------------------------------
 
 TrackerResponse::exp_tracker_resp
-TrackerResponse::parseHttpAnnounce(const http_resp &resp) {
+TrackerResponse::parseAnnounceHttp(const http_resp &resp) {
   TrackerResponse trackerResp;
-  auto result = TrackerResponse::validateTopLevHttpAnnounce(resp);
+  auto result = TrackerResponse::validateTopLevAnnounceHttp(resp);
   if (!result)
     return std::unexpected(error_code::invalidTrackerResponseErr);
   b_dict root = result.value();
@@ -114,13 +114,13 @@ TrackerResponse::parseHttpAnnounce(const http_resp &resp) {
           : "";
 
   if (root.contains("peers") && root.at("peers").isStr()) {
-    auto peerRes = TrackerResponse::parsePeers(root);
+    auto peerRes = TrackerResponse::parsePeersHttp(root);
     if (!peerRes)
       return std::unexpected(error_code::invalidTrackerResponseErr);
     trackerResp.peerList = std::move(peerRes.value());
 
   } else if (root.contains("peers") && root.at("peers").isList()) {
-    auto peerRes = TrackerResponse::parsePeers(root, false);
+    auto peerRes = TrackerResponse::parsePeersHttp(root, false);
     if (!peerRes)
       return std::unexpected(error_code::invalidTrackerResponseErr);
     trackerResp.peerList = std::move(peerRes.value());
@@ -130,8 +130,8 @@ TrackerResponse::parseHttpAnnounce(const http_resp &resp) {
   return trackerResp;
 }
 
-TrackerResponse::opt_peers TrackerResponse::parsePeers(b_dict root,
-                                                       bool compact) {
+TrackerResponse::opt_peers TrackerResponse::parsePeersHttp(b_dict root,
+                                                           bool compact) {
   std::vector<Peer> peerList;
   if (compact) {
     std::string_view peersView = root.at("peers").getStr();
@@ -182,7 +182,7 @@ TrackerResponse::opt_peers TrackerResponse::parsePeers(b_dict root,
 }
 
 TrackerResponse::opt_bdict
-TrackerResponse::validateTopLevHttpAnnounce(const http_resp &resp) {
+TrackerResponse::validateTopLevAnnounceHttp(const http_resp &resp) {
   BencodeDecoder decoder;
   auto nodeRes = decoder.decode(beast::buffers_to_string(resp.body().cdata()));
 

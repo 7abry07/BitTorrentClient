@@ -58,10 +58,10 @@ public:
   std::vector<Peer> peerList;
 
 private:
-  static exp_tracker_resp parseHttpAnnounce(const http_resp &resp);
-  static opt_bdict validateTopLevHttpAnnounce(const http_resp &resp);
+  static exp_tracker_resp parseAnnounceHttp(const http_resp &resp);
+  static opt_bdict validateTopLevAnnounceHttp(const http_resp &resp);
 
-  static opt_peers parsePeers(b_dict root, bool compact = true);
+  static opt_peers parsePeersHttp(b_dict root, bool compact = true);
 };
 
 class TrackerManager {
