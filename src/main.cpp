@@ -30,26 +30,26 @@ btc::net::awaitable<void> session(btc::net::io_context &io) {
   torrentFile file = res.value();
 
   trackerRequest req{};
-  req.infoHash = file.getInfoHash();
-  req.kind = btc::requestKind::Announce;
-  req.pID = "dsghbfevwevnunwp9gnw";
-  req.compact = true;
+  req.setInfoHash(file.getInfoHash());
+  req.setKind(btc::requestKind::Announce);
+  req.setPID("dsghbfevwevnunwp9gnw");
+  req.setCompact(true);
   auto urlres = urls::parse_uri(file.getAnnounce());
   if (!urlres) {
     std::println("error -> {}", urlres.error().message());
     co_return;
   }
-  req.url = urlres.value();
+  req.setUrl(urlres.value());
 
   auto respRes = co_await manager.send(req);
   if (!respRes)
     std::println("error -> {}", respRes.error().message());
-  if (respRes->failure != "")
-    std::println("failure -> {}", respRes->failure);
-  if (respRes->warning != "")
-    std::println("warning -> {}", respRes->warning);
+  if (respRes->isFailure())
+    std::println("failure -> {}", respRes->getFailure());
+  if (respRes->isWarning())
+    std::println("warning -> {}", respRes->getWarning());
   else {
-    for (auto peer : respRes->peerList)
+    for (auto peer : respRes->getPeerList())
       std::println("{} : {}", peer.ip, peer.port);
   }
 }

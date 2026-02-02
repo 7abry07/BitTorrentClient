@@ -16,12 +16,9 @@ TrackerManager::await_exp_tracker_resp
 TrackerManager::send(TrackerRequest req) {
   if (req.url.scheme() == "http") {
     auto resp = co_await httpSend(req);
-    if (!resp)
-      co_return std::unexpected(resp.error());
-    co_return resp;
+    co_return !resp ? std::unexpected(resp.error()) : resp;
   } else if (req.url.scheme() == "udp") {
-    // UDP
-    // TODO
+    // TODO UDP
     co_return TrackerResponse();
   }
   co_return std::unexpected(error_code::invalidUrlSchemeErr);
@@ -33,6 +30,9 @@ TrackerManager::httpSend(TrackerRequest req) {
                                                req.url.port_number());
   if (!conn)
     co_return std::unexpected(conn.error());
+
+  if (httpUrls.contains(req.url.buffer()))
+    req.trackerID = httpUrls.at(req.url.buffer());
 
   urls::url url = req.url;
   std::string q = "";
@@ -55,8 +55,7 @@ TrackerManager::httpSend(TrackerRequest req) {
     appendQuery(q, "trackerid", req.trackerID);
     url.set_encoded_query(std::string_view(q));
   } else {
-    // Scrape
-    // TODO
+    // TODO SCRAPE
   }
 
   auto httpResp = co_await conn->get(url.buffer());
@@ -65,19 +64,21 @@ TrackerManager::httpSend(TrackerRequest req) {
 
   if (req.kind == requestKind::Announce) {
     auto resp = TrackerResponse::parseAnnounceHttp(httpResp.value());
-    co_return !resp ? std::unexpected(resp.error()) : resp;
+    if (!resp)
+      co_return std::unexpected(resp.error());
+    if (resp->trackerID != "")
+      httpUrls.insert_or_assign(req.url.buffer(), resp->trackerID);
+    co_return resp;
   } else {
-    // Scrape
-    // TODO
+    // TODO SCRAPE
   }
   co_return std::unexpected(error_code::invalidTrackerResponseErr);
 }
 
 void TrackerManager::appendQuery(std::string &fullq, std::string k,
                                  std::string v, bool first) {
-  if (!first)
-    fullq.append("&");
-  fullq.append(k + "=" + urls::encode(v, urls::unreserved_chars));
+  fullq.append((first ? "" : "&") + k + "=" +
+               urls::encode(v, urls::unreserved_chars));
 }
 
 void TrackerManager::appendQuery(std::string &fullq, std::string k,
@@ -105,7 +106,7 @@ TrackerResponse::parseAnnounceHttp(const http_resp &resp) {
           ? root.at("min interval").getInt()
           : 0;
   trackerResp.trackerID =
-      (root.contains("tracker id") && root.at("tracker id").isInt())
+      (root.contains("tracker id") && root.at("tracker id").isStr())
           ? root.at("tracker id").getStr()
           : "";
   trackerResp.warning =
@@ -186,9 +187,7 @@ TrackerResponse::validateTopLevAnnounceHttp(const http_resp &resp) {
   BencodeDecoder decoder;
   auto nodeRes = decoder.decode(beast::buffers_to_string(resp.body().cdata()));
 
-  if (!nodeRes)
-    return std::nullopt;
-  if (!nodeRes->isDict())
+  if (!(nodeRes && nodeRes->isDict()))
     return std::nullopt;
 
   b_dict root = nodeRes.value().getDict();
@@ -199,7 +198,8 @@ TrackerResponse::validateTopLevAnnounceHttp(const http_resp &resp) {
     return std::nullopt;
   if (!(root.contains("incomplete") && root.at("incomplete").isInt()))
     return std::nullopt;
-  if (!(root.contains("peers") && root.at("peers").isStr()))
+  if (!(root.contains("peers") && root.at("peers").isStr()) &&
+      !(root.contains("peers") && root.at("peers").isDict()))
     return std::nullopt;
 
   return root;

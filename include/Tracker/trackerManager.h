@@ -7,18 +7,22 @@
 #include <helpers.h>
 #include <string>
 #include <system_error>
+#include <unordered_map>
 #include <vector>
 
 namespace btc {
 
 class TrackerManager;
-struct TrackerResponse;
-struct TrackerRequest;
+class TrackerResponse;
+class TrackerRequest;
 
 enum class eventType { None = 0, Completed, Started, Stopped };
 enum class requestKind { Announce = 0, Scrape };
 
-struct TrackerRequest {
+class TrackerRequest {
+  friend TrackerManager;
+
+private:
   urls::url url;
   std::string trackerID;
   std::string infoHash;
@@ -30,14 +34,42 @@ struct TrackerRequest {
   std::string ip;
   std::uint32_t key = 0;
   std::uint16_t port = 0;
-  bool no_pID = 0;
+  bool no_pID = false;
   bool compact = true;
-
   eventType event = eventType::None;
   requestKind kind;
+
+public:
+  void setUrl(const urls::url &v) { url = v; }
+  void setInfoHash(const std::string &v) { infoHash = v; }
+  void setPID(const std::string &v) { pID = v; }
+  void setDownloaded(std::int64_t v) { downloaded = v; }
+  void setLeft(std::int64_t v) { left = v; }
+  void setUploaded(std::int64_t v) { uploaded = v; }
+  void setNumwant(std::uint32_t v) { numwant = v; }
+  void setIP(const std::string &v) { ip = v; }
+  void setPort(std::uint16_t v) { port = v; }
+  void setNoPID(bool v) { no_pID = v; }
+  void setCompact(bool v) { compact = v; }
+  void setEvent(eventType v) { event = v; }
+  void setKind(requestKind v) { kind = v; }
+
+  const urls::url &getUrl() const { return url; }
+  const std::string &getInfoHash() const { return infoHash; }
+  const std::string &getPID() const { return pID; }
+  std::int64_t getDownloaded() const { return downloaded; }
+  std::int64_t getLeft() const { return left; }
+  std::int64_t getUploaded() const { return uploaded; }
+  std::uint32_t getNumwant() const { return numwant; }
+  const std::string &getIP() const { return ip; }
+  std::uint16_t getPort() const { return port; }
+  bool getNoPID() const { return no_pID; }
+  bool getCompact() const { return compact; }
+  eventType getEvent() const { return event; }
+  requestKind getKind() const { return kind; }
 };
 
-struct TrackerResponse {
+class TrackerResponse {
   friend TrackerManager;
 
 private:
@@ -47,6 +79,19 @@ private:
   using opt_bdict = std::optional<b_dict>;
 
 public:
+  const std::string &getFailure() const { return failure; }
+  bool isFailure() const { return failure != ""; }
+  const std::string &getWarning() const { return warning; }
+  bool isWarning() const { return warning != ""; }
+  const std::string &getTrackerID() const { return trackerID; }
+  std::uint32_t getInterval() const { return interval; }
+  std::uint32_t getMinInterval() const { return minInterval; }
+  std::uint64_t getComplete() const { return complete; }
+  std::uint64_t getIncomplete() const { return incomplete; }
+  std::uint64_t getDownloaded() const { return downloaded; }
+  const std::vector<Peer> &getPeerList() const { return peerList; }
+
+private:
   std::string failure;
   std::string warning;
   std::string trackerID;
@@ -57,7 +102,6 @@ public:
   std::uint64_t downloaded = 0;
   std::vector<Peer> peerList;
 
-private:
   static exp_tracker_resp parseAnnounceHttp(const http_resp &resp);
   static opt_bdict validateTopLevAnnounceHttp(const http_resp &resp);
 
@@ -76,12 +120,13 @@ public:
 
 private:
   net::io_context &ctx;
+  std::unordered_map<std::string, std::string> httpUrls;
 
+  await_exp_tracker_resp httpSend(TrackerRequest req);
   void appendQuery(std::string &fullq, std::string k, std::string v,
                    bool first = false);
   void appendQuery(std::string &fullq, std::string k, std::int64_t v,
                    bool first = false);
-  await_exp_tracker_resp httpSend(TrackerRequest req);
 };
 
 } // namespace btc
