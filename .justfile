@@ -1,20 +1,26 @@
-# runs the executable
+set quiet := true
+
+# run the executable
 run:
     ./build/btc
 
-# runs the tests
+# run the tests
 test:
     ./build/btc_tests --gtest_color=yes
 
-# opens debugger
+# open debugger
 debug:
     seergdb 
 
-# builds the project
+# debug with valgrind
+valg:
+    colour-valgrind ./build/btc
+
+# build the project
 build:
     make -C build
 
-# reconstructs build files
+# reconstruct build files
 rebuild type="Debug":
     rm -rf build
     mkdir build
