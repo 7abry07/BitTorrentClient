@@ -53,20 +53,6 @@ public:
   void setCompact(bool v) { compact = v; }
   void setEvent(eventType v) { event = v; }
   void setKind(requestKind v) { kind = v; }
-
-  const urls::url &getUrl() const { return url; }
-  const std::string &getInfoHash() const { return infoHash; }
-  const std::string &getPID() const { return pID; }
-  std::int64_t getDownloaded() const { return downloaded; }
-  std::int64_t getLeft() const { return left; }
-  std::int64_t getUploaded() const { return uploaded; }
-  std::uint32_t getNumwant() const { return numwant; }
-  const std::string &getIP() const { return ip; }
-  std::uint16_t getPort() const { return port; }
-  bool getNoPID() const { return no_pID; }
-  bool getCompact() const { return compact; }
-  eventType getEvent() const { return event; }
-  requestKind getKind() const { return kind; }
 };
 
 class TrackerResponse {
