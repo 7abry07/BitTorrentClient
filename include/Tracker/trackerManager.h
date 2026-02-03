@@ -88,10 +88,12 @@ private:
   std::uint64_t downloaded = 0;
   std::vector<Peer> peerList;
 
+  static opt_peers parseCompactPeersHttp(b_dict root);
+  static opt_peers parsePeersHttp(b_dict root);
+
   static exp_tracker_resp parseAnnounceHttp(const http_resp &resp);
   static exp_tracker_resp parseScrapeHttp(const http_resp &resp,
                                           std::string infohash);
-  static opt_peers parsePeersHttp(b_dict root, bool compact = true);
 };
 
 class TrackerManager {

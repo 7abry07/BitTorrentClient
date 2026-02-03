@@ -10,7 +10,6 @@
 #include <errors.h>
 #include <expected>
 #include <optional>
-#include <print>
 #include <string_view>
 #include <sys/types.h>
 #include <vector>
@@ -148,13 +147,13 @@ TrackerResponse::parseAnnounceHttp(const http_resp &resp) {
           : "";
 
   if (root.contains("peers") && root.at("peers").isStr()) {
-    auto peerRes = TrackerResponse::parsePeersHttp(root);
+    auto peerRes = TrackerResponse::parseCompactPeersHttp(root);
     if (!peerRes)
       return std::unexpected(error_code::invalidTrackerResponseErr);
     trackerResp.peerList = std::move(peerRes.value());
 
   } else if (root.contains("peers") && root.at("peers").isList()) {
-    auto peerRes = TrackerResponse::parsePeersHttp(root, false);
+    auto peerRes = TrackerResponse::parsePeersHttp(root);
     if (!peerRes)
       return std::unexpected(error_code::invalidTrackerResponseErr);
     trackerResp.peerList = std::move(peerRes.value());
@@ -195,53 +194,54 @@ TrackerResponse::parseScrapeHttp(const http_resp &resp, std::string infohash) {
   return trackerResp;
 }
 
-TrackerResponse::opt_peers TrackerResponse::parsePeersHttp(b_dict root,
-                                                           bool compact) {
+TrackerResponse::opt_peers TrackerResponse::parseCompactPeersHttp(b_dict root) {
   std::vector<Peer> peerList;
-  if (compact) {
-    std::string_view peersView = root.at("peers").getStr();
+  std::string_view peersView = root.at("peers").getStr();
 
-    while (peersView.size() != 0) {
-      std::string_view peerView = peersView.substr(0, 6);
-      unsigned char ip[4];
-      unsigned char port[2];
+  while (peersView.size() != 0) {
+    std::string_view peerView = peersView.substr(0, 6);
+    unsigned char ip[4];
+    unsigned char port[2];
 
-      ip[0] = static_cast<unsigned char>(peerView.at(0));
-      ip[1] = static_cast<unsigned char>(peerView.at(1));
-      ip[2] = static_cast<unsigned char>(peerView.at(2));
-      ip[3] = static_cast<unsigned char>(peerView.at(3));
+    ip[0] = static_cast<unsigned char>(peerView.at(0));
+    ip[1] = static_cast<unsigned char>(peerView.at(1));
+    ip[2] = static_cast<unsigned char>(peerView.at(2));
+    ip[3] = static_cast<unsigned char>(peerView.at(3));
 
-      port[0] = static_cast<unsigned char>(peerView.at(4));
-      port[1] = static_cast<unsigned char>(peerView.at(5));
+    port[0] = static_cast<unsigned char>(peerView.at(4));
+    port[1] = static_cast<unsigned char>(peerView.at(5));
 
-      Peer peer{};
-      peer.ip = std::format("{}.{}.{}.{}", ip[3], ip[2], ip[1], ip[0]);
-      peer.port = port_t(port[0]) | port_t(port[1]) << 8;
+    Peer peer{};
+    peer.ip = std::format("{}.{}.{}.{}", ip[3], ip[2], ip[1], ip[0]);
+    peer.port = port_t(port[0]) | port_t(port[1]) << 8;
 
-      peersView.remove_prefix(6);
-      peerList.push_back(peer);
-    }
-  } else {
-    b_list peers = root.at("peers").getList();
-    for (auto node : peers) {
-      Peer peer{};
+    peersView.remove_prefix(6);
+    peerList.push_back(peer);
+  }
+  return peerList;
+}
 
-      if (!node.isDict())
-        return std::nullopt;
-      b_dict peerNode = node.getDict();
-      if (!(peerNode.contains("peer id") && peerNode.at("peer id").isStr()))
-        return std::nullopt;
-      if (!(peerNode.contains("ip") && peerNode.at("ip").isStr()))
-        return std::nullopt;
-      if (!(peerNode.contains("port") && peerNode.at("port").isInt()))
-        return std::nullopt;
+TrackerResponse::opt_peers TrackerResponse::parsePeersHttp(b_dict root) {
+  std::vector<Peer> peerList;
+  b_list peers = root.at("peers").getList();
+  for (auto node : peers) {
+    Peer peer{};
 
-      peer.pID = peerNode.at("peer id").getStr();
-      peer.ip = peerNode.at("ip").getStr();
-      peer.port = peerNode.at("port").getInt();
+    if (!node.isDict())
+      return std::nullopt;
+    b_dict peerNode = node.getDict();
+    if (!(peerNode.contains("peer id") && peerNode.at("peer id").isStr()))
+      return std::nullopt;
+    if (!(peerNode.contains("ip") && peerNode.at("ip").isStr()))
+      return std::nullopt;
+    if (!(peerNode.contains("port") && peerNode.at("port").isInt()))
+      return std::nullopt;
 
-      peerList.push_back(peer);
-    }
+    peer.pID = peerNode.at("peer id").getStr();
+    peer.ip = peerNode.at("ip").getStr();
+    peer.port = peerNode.at("port").getInt();
+
+    peerList.push_back(peer);
   }
   return peerList;
 }
