@@ -91,8 +91,8 @@ private:
   static opt_peers parseCompactPeersHttp(b_dict root);
   static opt_peers parsePeersHttp(b_dict root);
 
-  static exp_tracker_resp parseAnnounceHttp(const http_resp &resp);
-  static exp_tracker_resp parseScrapeHttp(const http_resp &resp,
+  static exp_tracker_resp parseAnnounceHttp(const std::span<char const> &resp);
+  static exp_tracker_resp parseScrapeHttp(const std::span<char const> &resp,
                                           std::string infohash);
 };
 

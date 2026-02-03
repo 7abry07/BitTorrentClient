@@ -74,7 +74,8 @@ TrackerManager::httpSend(TrackerRequest req) {
     co_return std::unexpected(httpResp.error());
 
   if (req.kind == requestKind::Announce) {
-    auto resp = TrackerResponse::parseAnnounceHttp(httpResp.value());
+    auto resp = TrackerResponse::parseAnnounceHttp(
+        beast::buffers_to_string(httpResp->body().cdata()));
     if (!resp)
       co_return std::unexpected(resp.error());
 
@@ -83,8 +84,8 @@ TrackerManager::httpSend(TrackerRequest req) {
     co_return resp;
 
   } else if (req.kind == requestKind::Scrape) {
-    auto resp =
-        TrackerResponse::parseScrapeHttp(httpResp.value(), req.infoHash);
+    auto resp = TrackerResponse::parseScrapeHttp(
+        beast::buffers_to_string(httpResp->body().cdata()), req.infoHash);
 
     if (!resp)
       co_return std::unexpected(resp.error());
@@ -109,11 +110,11 @@ void TrackerManager::appendQuery(std::string &fullq, std::string k,
 // ----------------------------------------------
 
 TrackerResponse::exp_tracker_resp
-TrackerResponse::parseAnnounceHttp(const http_resp &resp) {
+TrackerResponse::parseAnnounceHttp(const std::span<char const> &resp) {
   BencodeDecoder decoder;
   TrackerResponse trackerResp;
 
-  auto nodeRes = decoder.decode(beast::buffers_to_string(resp.body().cdata()));
+  auto nodeRes = decoder.decode(beast::buffers_to_string(resp));
 
   if (!(nodeRes && nodeRes->isDict()))
     return std::unexpected(error_code::invalidTrackerResponseErr);
@@ -164,11 +165,12 @@ TrackerResponse::parseAnnounceHttp(const http_resp &resp) {
 }
 
 TrackerResponse::exp_tracker_resp
-TrackerResponse::parseScrapeHttp(const http_resp &resp, std::string infohash) {
+TrackerResponse::parseScrapeHttp(const std::span<char const> &resp,
+                                 std::string infohash) {
   BencodeDecoder decoder;
   TrackerResponse trackerResp;
 
-  auto nodeRes = decoder.decode(beast::buffers_to_string(resp.body().cdata()));
+  auto nodeRes = decoder.decode(beast::buffers_to_string(resp));
 
   if (!(nodeRes && nodeRes->isDict()))
     return std::unexpected(error_code::invalidTrackerResponseErr);
