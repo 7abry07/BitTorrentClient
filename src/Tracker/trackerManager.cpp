@@ -1,12 +1,17 @@
+#include "Bencode/bencodeValue.h"
+#include "error_codes.h"
 #include <Bencode/bencodeDecoder.h>
 #include <Net/httpConnection.h>
 #include <Torrent/peer.h>
 #include <Tracker/trackerManager.h>
 #include <array>
+#include <boost/beast/core/buffers_to_string.hpp>
 #include <cstdint>
 #include <errors.h>
 #include <expected>
 #include <optional>
+#include <print>
+#include <string_view>
 #include <sys/types.h>
 #include <vector>
 
@@ -55,9 +60,16 @@ TrackerManager::httpSend(TrackerRequest req) {
     appendQuery(q, "trackerid", req.trackerID);
     url.set_encoded_query(std::string_view(q));
   } else {
-    // TODO SCRAPE
+    std::string path = url.path();
+    if (int announceEnd = path.find_last_of("/announce") != std::string::npos) {
+      path.replace(announceEnd, 8, "scrape", 6);
+      url.set_encoded_path(path);
+      appendQuery(q, "info_hash", req.infoHash, true);
+      url.set_encoded_query(q);
+    } else {
+      co_return std::unexpected(error_code::scrapeNotSupported);
+    }
   }
-
   auto httpResp = co_await conn->get(url.buffer());
   if (!httpResp)
     co_return std::unexpected(httpResp.error());
@@ -66,11 +78,18 @@ TrackerManager::httpSend(TrackerRequest req) {
     auto resp = TrackerResponse::parseAnnounceHttp(httpResp.value());
     if (!resp)
       co_return std::unexpected(resp.error());
+
     if (resp->trackerID != "")
       httpUrls.insert_or_assign(req.url.buffer(), resp->trackerID);
     co_return resp;
-  } else {
-    // TODO SCRAPE
+
+  } else if (req.kind == requestKind::Scrape) {
+    auto resp =
+        TrackerResponse::parseScrapeHttp(httpResp.value(), req.infoHash);
+
+    if (!resp)
+      co_return std::unexpected(resp.error());
+    co_return resp;
   }
   co_return std::unexpected(error_code::invalidTrackerResponseErr);
 }
@@ -92,11 +111,25 @@ void TrackerManager::appendQuery(std::string &fullq, std::string k,
 
 TrackerResponse::exp_tracker_resp
 TrackerResponse::parseAnnounceHttp(const http_resp &resp) {
+  BencodeDecoder decoder;
   TrackerResponse trackerResp;
-  auto result = TrackerResponse::validateTopLevAnnounceHttp(resp);
-  if (!result)
+
+  auto nodeRes = decoder.decode(beast::buffers_to_string(resp.body().cdata()));
+
+  if (!(nodeRes && nodeRes->isDict()))
     return std::unexpected(error_code::invalidTrackerResponseErr);
-  b_dict root = result.value();
+
+  b_dict root = nodeRes.value().getDict();
+
+  if (!(root.contains("interval") && root.at("interval").isInt()))
+    return std::unexpected(error_code::invalidTrackerResponseErr);
+  if (!(root.contains("complete") && root.at("complete").isInt()))
+    return std::unexpected(error_code::invalidTrackerResponseErr);
+  if (!(root.contains("incomplete") && root.at("incomplete").isInt()))
+    return std::unexpected(error_code::invalidTrackerResponseErr);
+  if (!(root.contains("peers") && root.at("peers").isStr()) &&
+      !(root.contains("peers") && root.at("peers").isDict()))
+    return std::unexpected(error_code::invalidTrackerResponseErr);
 
   trackerResp.interval = root.at("interval").getInt();
   trackerResp.complete = root.at("complete").getInt();
@@ -128,6 +161,37 @@ TrackerResponse::parseAnnounceHttp(const http_resp &resp) {
   } else {
     return std::unexpected(error_code::invalidTrackerResponseErr);
   }
+  return trackerResp;
+}
+
+TrackerResponse::exp_tracker_resp
+TrackerResponse::parseScrapeHttp(const http_resp &resp, std::string infohash) {
+  BencodeDecoder decoder;
+  TrackerResponse trackerResp;
+
+  auto nodeRes = decoder.decode(beast::buffers_to_string(resp.body().cdata()));
+
+  if (!(nodeRes && nodeRes->isDict()))
+    return std::unexpected(error_code::invalidTrackerResponseErr);
+  b_dict root = nodeRes.value().getDict();
+  if (!(root.contains("files") && root.at("files").isDict()))
+    return std::unexpected(error_code::invalidTrackerResponseErr);
+  b_dict files = root.at("files").getDict();
+  if (!(files.contains(infohash) && files.at(infohash).isDict()))
+    return std::unexpected(error_code::invalidTrackerResponseErr);
+  b_dict file = files.at(infohash).getDict();
+
+  if (!(file.contains("complete") && file.at("complete").isInt()))
+    return std::unexpected(error_code::invalidTrackerResponseErr);
+  if (!(file.contains("incomplete") && file.at("incomplete").isInt()))
+    return std::unexpected(error_code::invalidTrackerResponseErr);
+  if (!(file.contains("downloaded") && file.at("downloaded").isInt()))
+    return std::unexpected(error_code::invalidTrackerResponseErr);
+
+  trackerResp.complete = file.at("complete").getInt();
+  trackerResp.incomplete = file.at("incomplete").getInt();
+  trackerResp.downloaded = file.at("downloaded").getInt();
+
   return trackerResp;
 }
 
@@ -180,29 +244,6 @@ TrackerResponse::opt_peers TrackerResponse::parsePeersHttp(b_dict root,
     }
   }
   return peerList;
-}
-
-TrackerResponse::opt_bdict
-TrackerResponse::validateTopLevAnnounceHttp(const http_resp &resp) {
-  BencodeDecoder decoder;
-  auto nodeRes = decoder.decode(beast::buffers_to_string(resp.body().cdata()));
-
-  if (!(nodeRes && nodeRes->isDict()))
-    return std::nullopt;
-
-  b_dict root = nodeRes.value().getDict();
-
-  if (!(root.contains("interval") && root.at("interval").isInt()))
-    return std::nullopt;
-  if (!(root.contains("complete") && root.at("complete").isInt()))
-    return std::nullopt;
-  if (!(root.contains("incomplete") && root.at("incomplete").isInt()))
-    return std::nullopt;
-  if (!(root.contains("peers") && root.at("peers").isStr()) &&
-      !(root.contains("peers") && root.at("peers").isDict()))
-    return std::nullopt;
-
-  return root;
 }
 
 } // namespace btc

@@ -83,7 +83,8 @@ enum error_code {
   // ---------------------------------
 
   invalidUrlSchemeErr,
-  invalidTrackerResponseErr
+  invalidTrackerResponseErr,
+  scrapeNotSupported
 };
 
 static const std::unordered_map<error_code, std::string> err_mess = {
@@ -159,5 +160,6 @@ static const std::unordered_map<error_code, std::string> err_mess = {
     // ---------------------------------
 
     {invalidUrlSchemeErr, "the announce url scheme was neither http or udp"},
+    {scrapeNotSupported, "the tracker does not support scrape requests "},
     {invalidTrackerResponseErr, "the tracker response is invalid"}};
 } // namespace btc

@@ -89,8 +89,8 @@ private:
   std::vector<Peer> peerList;
 
   static exp_tracker_resp parseAnnounceHttp(const http_resp &resp);
-  static opt_bdict validateTopLevAnnounceHttp(const http_resp &resp);
-
+  static exp_tracker_resp parseScrapeHttp(const http_resp &resp,
+                                          std::string infohash);
   static opt_peers parsePeersHttp(b_dict root, bool compact = true);
 };
 

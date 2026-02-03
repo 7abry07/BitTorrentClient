@@ -31,7 +31,7 @@ btc::net::awaitable<void> session(btc::net::io_context &io) {
 
   trackerRequest req{};
   req.setInfoHash(file.getInfoHash());
-  req.setKind(btc::requestKind::Announce);
+  req.setKind(btc::requestKind::Scrape);
   req.setPID("dsghbfevwevnunwp9gnw");
   req.setCompact(true);
   auto urlres = urls::parse_uri(file.getAnnounce());
@@ -44,13 +44,16 @@ btc::net::awaitable<void> session(btc::net::io_context &io) {
   auto respRes = co_await manager.send(req);
   if (!respRes)
     std::println("error -> {}", respRes.error().message());
-  if (respRes->isFailure())
+  else if (respRes->isFailure())
     std::println("failure -> {}", respRes->getFailure());
-  if (respRes->isWarning())
+  else if (respRes->isWarning())
     std::println("warning -> {}", respRes->getWarning());
   else {
-    for (auto peer : respRes->getPeerList())
-      std::println("{} : {}", peer.ip, peer.port);
+    // for (auto peer : respRes->getPeerList())
+    //   std::println("{} : {}", peer.ip, peer.port);
+    std::println("{}", respRes->getComplete());
+    std::println("{}", respRes->getIncomplete());
+    std::println("{}", respRes->getDownloaded());
   }
 }
 
