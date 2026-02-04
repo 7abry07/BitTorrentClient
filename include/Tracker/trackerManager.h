@@ -86,18 +86,20 @@ private:
   std::uint64_t incomplete = 0;
   std::uint64_t downloaded = 0;
   std::vector<Peer> peerList;
-
-  static opt_peers parseCompactPeersHttp(BNode root);
-  static opt_peers parsePeersHttp(BNode root);
-
-  static exp_tracker_resp parseAnnounceHttp(const std::span<char const> &resp);
-  static exp_tracker_resp parseScrapeHttp(const std::span<char const> &resp,
-                                          std::string infohash);
+  //
+  // static opt_peers parseCompactPeersHttp(BNode root);
+  // static opt_peers parsePeersHttp(BNode root);
+  //
+  // static exp_tracker_resp parseAnnounceHttp(const std::span<char const>
+  // &resp); static exp_tracker_resp parseScrapeHttp(const std::span<char const>
+  // &resp,
+  //                                         std::string infohash);
 };
 
 class TrackerManager {
 
 private:
+  using opt_peers = std::optional<std::vector<Peer>>;
   using exp_tracker_resp = std::expected<TrackerResponse, std::error_code>;
   using await_exp_tracker_resp = net::awaitable<exp_tracker_resp>;
 
@@ -110,10 +112,15 @@ private:
   std::unordered_map<std::string, std::string> httpUrls;
 
   await_exp_tracker_resp httpSend(TrackerRequest req);
-  void appendQuery(std::string &fullq, std::string k, std::string v,
-                   bool first = false);
-  void appendQuery(std::string &fullq, std::string k, std::int64_t v,
-                   bool first = false);
+  static opt_peers parseCompactPeersHttp(BNode root);
+  static opt_peers parsePeersHttp(BNode root);
+
+  static exp_tracker_resp parseAnnounceHttp(const std::span<char const> &resp);
+  static exp_tracker_resp parseScrapeHttp(const std::span<char const> &resp,
+                                          std::string infohash);
+
+  void appendQuery(std::string &q, std::string k, std::string v);
+  void appendQuery(std::string &q, std::string k, std::int64_t v);
 };
 
 } // namespace btc

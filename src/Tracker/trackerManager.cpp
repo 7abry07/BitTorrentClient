@@ -42,65 +42,55 @@ TrackerManager::httpSend(TrackerRequest req) {
   if (req.kind == requestKind::Announce) {
     std::array<std::string, 4> eventStr{"none", "completed", "started",
                                         "stopped"};
-    appendQuery(q, "info_hash", req.infoHash, true);
-    appendQuery(q, "peer_id", req.pID);
-    appendQuery(q, "port", req.port);
-    appendQuery(q, "uploaded", req.uploaded);
-    appendQuery(q, "downloaded", req.downloaded);
-    appendQuery(q, "left", req.left);
-    appendQuery(q, "compact", req.compact);
-    appendQuery(q, "no_peer_id", req.no_pID);
-    appendQuery(q, "event", eventStr[static_cast<int>(req.event)]);
-    appendQuery(q, "numwant", req.numwant);
-    appendQuery(q, "ip", req.ip);
-    appendQuery(q, "key", req.key);
-    appendQuery(q, "trackerid", req.trackerID);
+    appendQuery(q, "info_hash", req.infoHash);
+    appendQuery(q, "&peer_id", req.pID);
+    appendQuery(q, "&port", req.port);
+    appendQuery(q, "&uploaded", req.uploaded);
+    appendQuery(q, "&downloaded", req.downloaded);
+    appendQuery(q, "&left", req.left);
+    appendQuery(q, "&compact", req.compact);
+    appendQuery(q, "&no_peer_id", req.no_pID);
+    appendQuery(q, "&event", eventStr[static_cast<int>(req.event)]);
+    appendQuery(q, "&numwant", req.numwant);
+    appendQuery(q, "&ip", req.ip);
+    appendQuery(q, "&key", req.key);
+    appendQuery(q, "&trackerid", req.trackerID);
     url.set_encoded_query(std::string_view(q));
   } else {
     std::string path = url.path();
-    if (int announceEnd = path.find_last_of("/announce") != std::string::npos) {
+
+    if (int announceEnd = path.find_last_of("/announce") != std::string::npos)
       path.replace(announceEnd, 8, "scrape", 6);
-      url.set_encoded_path(path);
-      appendQuery(q, "info_hash", req.infoHash, true);
-      url.set_encoded_query(q);
-    } else {
+    else
       co_return std::unexpected(error_code::scrapeNotSupported);
-    }
+
+    url.set_encoded_path(path);
+    appendQuery(q, "info_hash", req.infoHash);
+    url.set_encoded_query(q);
   }
   auto httpResp = co_await conn->get(url.buffer());
   if (!httpResp)
     co_return std::unexpected(httpResp.error());
 
-  if (req.kind == requestKind::Announce) {
-    auto resp = TrackerResponse::parseAnnounceHttp(
-        beast::buffers_to_string(httpResp->body().cdata()));
-    if (!resp)
-      co_return std::unexpected(resp.error());
-
-    if (resp->trackerID != "")
-      httpUrls.insert_or_assign(req.url.buffer(), resp->trackerID);
-    co_return resp;
-
-  } else if (req.kind == requestKind::Scrape) {
-    auto resp = TrackerResponse::parseScrapeHttp(
-        beast::buffers_to_string(httpResp->body().cdata()), req.infoHash);
-
-    if (!resp)
-      co_return std::unexpected(resp.error());
-    co_return resp;
-  }
-  co_return std::unexpected(error_code::invalidTrackerResponseErr);
+  auto resp =
+      req.kind == requestKind::Announce
+          ? parseAnnounceHttp(
+                beast::buffers_to_string(httpResp->body().cdata()))
+          : parseScrapeHttp(beast::buffers_to_string(httpResp->body().cdata()),
+                            req.infoHash);
+  if (!resp)
+    co_return std::unexpected(resp.error());
+  if (resp->trackerID != "")
+    httpUrls.insert_or_assign(req.url.buffer(), resp->trackerID);
+  co_return resp;
 }
 
-void TrackerManager::appendQuery(std::string &fullq, std::string k,
-                                 std::string v, bool first) {
-  fullq.append((first ? "" : "&") + k + "=" +
-               urls::encode(v, urls::unreserved_chars));
+void TrackerManager::appendQuery(std::string &q, std::string k, std::string v) {
+  q.append(k + "=" + urls::encode(v, urls::unreserved_chars));
 }
-
-void TrackerManager::appendQuery(std::string &fullq, std::string k,
-                                 std::int64_t v, bool first) {
-  appendQuery(fullq, k, std::to_string(v), first);
+void TrackerManager::appendQuery(std::string &q, std::string k,
+                                 std::int64_t v) {
+  appendQuery(q, k, std::to_string(v));
 }
 
 // ----------------------------------------------
@@ -108,7 +98,7 @@ void TrackerManager::appendQuery(std::string &fullq, std::string k,
 // ----------------------------------------------
 
 TrackerResponse::exp_tracker_resp
-TrackerResponse::parseAnnounceHttp(const std::span<char const> &resp) {
+TrackerManager::parseAnnounceHttp(const std::span<char const> &resp) {
   BencodeDecoder decoder;
   TrackerResponse trackerResp;
 
@@ -145,8 +135,8 @@ TrackerResponse::parseAnnounceHttp(const std::span<char const> &resp) {
   trackerResp.warning = warning.getStr();
 
   auto peerRes = !peerCompactList.getStr().empty()
-                     ? TrackerResponse::parseCompactPeersHttp(nodeRes.value())
-                     : TrackerResponse::parsePeersHttp(nodeRes.value());
+                     ? parseCompactPeersHttp(nodeRes.value())
+                     : parsePeersHttp(nodeRes.value());
   if (!peerRes)
     return std::unexpected(error_code::invalidTrackerResponseErr);
   trackerResp.peerList = std::move(peerRes.value());
@@ -154,9 +144,9 @@ TrackerResponse::parseAnnounceHttp(const std::span<char const> &resp) {
   return trackerResp;
 }
 
-TrackerResponse::exp_tracker_resp
-TrackerResponse::parseScrapeHttp(const std::span<char const> &resp,
-                                 std::string infohash) {
+TrackerManager::exp_tracker_resp
+TrackerManager::parseScrapeHttp(const std::span<char const> &resp,
+                                std::string infohash) {
   BencodeDecoder decoder;
   TrackerResponse trackerResp;
 
@@ -186,11 +176,11 @@ TrackerResponse::parseScrapeHttp(const std::span<char const> &resp,
   return trackerResp;
 }
 
-TrackerResponse::opt_peers TrackerResponse::parseCompactPeersHttp(BNode root) {
+TrackerManager::opt_peers TrackerManager::parseCompactPeersHttp(BNode root) {
   std::vector<Peer> peerList;
   std::string_view peersView = root.dictFindString("peers", "").getStr();
 
-  while (peersView.size() != 0) {
+  while (!peersView.empty()) {
     std::string_view peerView = peersView.substr(0, 6);
     unsigned char ip[4];
     unsigned char port[2];
@@ -213,7 +203,7 @@ TrackerResponse::opt_peers TrackerResponse::parseCompactPeersHttp(BNode root) {
   return peerList;
 }
 
-TrackerResponse::opt_peers TrackerResponse::parsePeersHttp(BNode root) {
+TrackerManager::opt_peers TrackerManager::parsePeersHttp(BNode root) {
   std::vector<Peer> peerList;
   auto peersRes = root.dictFindList("peers");
   for (auto node : peersRes->getList()) {
