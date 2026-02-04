@@ -2,35 +2,44 @@
 
 #include <cstdint>
 #include <map>
+#include <optional>
 #include <string>
 #include <variant>
 #include <vector>
 
 namespace btc {
 
-class BenNode;
+class BNode;
 
-using b_int = std::int64_t;
-using b_string = std::string;
-using b_list = std::vector<BenNode>;
-using b_dict = std::map<b_string, BenNode>;
-
-class BenNode {
+class BNode {
 
 public:
-  using b_val = std::variant<b_int, b_string, b_list, b_dict>;
+  using int_t = std::int64_t;
+  using string_t = std::string;
+  using list_t = std::vector<BNode>;
+  using dict_t = std::map<string_t, BNode>;
+  using b_val = std::variant<int_t, string_t, list_t, dict_t>;
 
-  BenNode(b_val val);
+  BNode() : val(0) {};
+  BNode(b_val val);
 
   bool isInt();
   bool isStr();
   bool isList();
   bool isDict();
 
-  b_int &getInt();
-  b_string &getStr();
-  b_list &getList();
-  b_dict &getDict();
+  int_t &getInt();
+  string_t &getStr();
+  list_t &getList();
+  dict_t &getDict();
+
+  BNode dictFindInt(std::string k, int_t def);
+  BNode dictFindString(std::string k, string_t def);
+
+  std::optional<BNode> dictFindInt(std::string k);
+  std::optional<BNode> dictFindString(std::string k);
+  std::optional<BNode> dictFindList(std::string k);
+  std::optional<BNode> dictFindDict(std::string k);
 
 private:
   b_val val;

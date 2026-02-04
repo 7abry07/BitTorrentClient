@@ -35,30 +35,27 @@ TorrentParser::parseContent(std::string content, BencodeDecoder decoder) {
   if (!bencodeRes->isDict())
     return std::unexpected(error_code::rootStructureNotDictErr);
 
-  b_dict root = bencodeRes->getDict();
-  if (!root.contains("info"))
-    return std::unexpected(error_code::missingInfoKeyErr);
-  if (!root.at("info").isDict())
+  auto infoRes = bencodeRes->dictFindDict("info");
+  if (!infoRes)
     return std::unexpected(error_code::infoKeyNotDictErr);
-  b_dict info = root.at("info").getDict();
 
-  auto announceRes = parseAnnounce(root);
+  auto announceRes = parseAnnounce(bencodeRes.value());
   if (!announceRes)
     return std::unexpected(announceRes.error());
 
-  auto nameRes = parseName(info);
+  auto nameRes = parseName(infoRes.value());
   if (!nameRes)
     return std::unexpected(nameRes.error());
 
-  auto piecesRes = parsePieces(info);
+  auto piecesRes = parsePieces(infoRes.value());
   if (!piecesRes)
     return std::unexpected(piecesRes.error());
 
-  auto pieceLengthRes = parsePieceLength(info);
+  auto pieceLengthRes = parsePieceLength(infoRes.value());
   if (!pieceLengthRes)
     return std::unexpected(pieceLengthRes.error());
 
-  auto fileModeRes = validateFileMode(info);
+  auto fileModeRes = validateFileMode(infoRes.value());
   if (!fileModeRes)
     return std::unexpected(fileModeRes.error());
 
@@ -67,7 +64,7 @@ TorrentParser::parseContent(std::string content, BencodeDecoder decoder) {
 
   switch (*fileModeRes) {
   case FileMode::single: {
-    auto lengthRes = parseSingle(info);
+    auto lengthRes = parseSingle(infoRes.value());
     if (!lengthRes)
       return std::unexpected(lengthRes.error());
     length = *lengthRes;
@@ -75,7 +72,7 @@ TorrentParser::parseContent(std::string content, BencodeDecoder decoder) {
   }
 
   case FileMode::multiple: {
-    auto filesRes = parseMultiple(info);
+    auto filesRes = parseMultiple(infoRes.value());
     if (!filesRes)
       return std::unexpected(filesRes.error());
     files = std::move(*filesRes);
@@ -83,11 +80,11 @@ TorrentParser::parseContent(std::string content, BencodeDecoder decoder) {
   }
   }
 
-  auto announceListRes = parseAnnounceList(root);
-  auto commentRes = parseComment(root);
-  auto createdByRes = parseCreatedBy(root);
-  auto encodingRes = parseEncoding(root);
-  auto creationDateRes = parseCreationDate(root);
+  auto announceListRes = parseAnnounceList(bencodeRes.value());
+  auto commentRes = parseComment(bencodeRes.value());
+  auto createdByRes = parseCreatedBy(bencodeRes.value());
+  auto encodingRes = parseEncoding(bencodeRes.value());
+  auto creationDateRes = parseCreationDate(bencodeRes.value());
 
   TorrentFile file;
   file.announce = *announceRes;
@@ -108,7 +105,7 @@ TorrentParser::parseContent(std::string content, BencodeDecoder decoder) {
 
   unsigned char hash[20];
   BencodeEncoder encoder;
-  std::string infoBencode = encoder.encode(static_cast<BenNode>(info));
+  std::string infoBencode = encoder.encode(static_cast<BNode>(infoRes.value()));
 
   SHA1(reinterpret_cast<const unsigned char *>(infoBencode.data()),
        infoBencode.size(), hash);
@@ -118,71 +115,72 @@ TorrentParser::parseContent(std::string content, BencodeDecoder decoder) {
   return file;
 }
 
-TorrentParser::exp_string TorrentParser::parseAnnounce(b_dict root) {
-  if (!root.contains("announce"))
+TorrentParser::exp_string TorrentParser::parseAnnounce(BNode root) {
+  auto announceRes = root.dictFindString("announce");
+  if (!announceRes)
     return std::unexpected(error_code::missingAnnounceKeyErr);
-  if (!root.at("announce").isStr())
-    return std::unexpected(error_code::announceKeyNotStrErr);
-  return root.at("announce").getStr();
+  return announceRes->getStr();
 }
 
-TorrentParser::exp_sizet TorrentParser::parsePieceLength(b_dict info) {
-  if (!info.contains("piece length"))
+TorrentParser::exp_sizet TorrentParser::parsePieceLength(BNode info) {
+  auto pieceLenRes = info.dictFindInt("piece length");
+  if (!pieceLenRes)
     return std::unexpected(error_code::missingPieceLengthFieldErr);
-  if (!info.at("piece length").isInt())
-    return std::unexpected(error_code::pieceLengthFieldNotIntErr);
-  if (info.at("piece length").getInt() < 0)
+
+  if (pieceLenRes->getInt() < 0)
     return std::unexpected(error_code::pieceLengthNegativeErr);
-  if (info.at("piece length").getInt() == 0)
+  if (pieceLenRes->getInt() == 0)
     return std::unexpected(error_code::pieceLengthZeroErr);
-  return info.at("piece length").getInt();
+  return pieceLenRes->getInt();
 }
 
-TorrentParser::exp_string TorrentParser::parseName(b_dict info) {
-  if (!info.contains("name"))
+TorrentParser::exp_string TorrentParser::parseName(BNode info) {
+  auto nameRes = info.dictFindString("name");
+  if (!nameRes)
     return std::unexpected(error_code::missingNameFieldErr);
-  if (!info.at("name").isStr())
-    return std::unexpected(error_code::nameFieldNotStrErr);
-  return info.at("name").getStr();
+  return nameRes->getStr();
 }
 
-TorrentParser::exp_string TorrentParser::parsePieces(b_dict info) {
-  if (!info.contains("pieces"))
+TorrentParser::exp_string TorrentParser::parsePieces(BNode info) {
+  auto piecesRes = info.dictFindString("pieces");
+  if (!piecesRes)
     return std::unexpected(error_code::missingPiecesFieldErr);
-  if (!info.at("pieces").isStr())
-    return std::unexpected(error_code::piecesFieldNotStrErr);
-  return info.at("pieces").getStr();
+  return piecesRes->getStr();
 }
 
-TorrentParser::exp_filemode TorrentParser::validateFileMode(b_dict info) {
-  if (!info.contains("length") && !info.contains("files"))
+TorrentParser::exp_filemode TorrentParser::validateFileMode(BNode info) {
+  auto filesRes = info.dictFindList("files");
+  auto lengthRes = info.dictFindInt("length");
+
+  if (!lengthRes && !filesRes)
     return std::unexpected(error_code::bothLengthAndFilesFieldsMissingErr);
-  if (info.contains("length") && info.contains("files"))
+  if (lengthRes && filesRes)
     return std::unexpected(error_code::bothLengthAndFilesFieldsPresentErr);
-  return (info.contains("length")) ? FileMode::single : FileMode::multiple;
+  return (lengthRes) ? FileMode::single : FileMode::multiple;
 }
 
-TorrentParser::exp_sizet TorrentParser::parseSingle(b_dict info) {
-  if (!info.at("length").isInt())
+TorrentParser::exp_sizet TorrentParser::parseSingle(BNode info) {
+  auto lengthRes = info.dictFindInt("length");
+  if (!lengthRes)
     return std::unexpected(error_code::lengthFieldNotIntErr);
-  if (info.at("length").getInt() < 0)
+  if (lengthRes->getInt() < 0)
     return std::unexpected(error_code::singleLengthNegativeErr);
-  if (info.at("length").getInt() == 0)
+  if (lengthRes->getInt() == 0)
     return std::unexpected(error_code::singleLengthZeroErr);
-  return info.at("length").getInt();
+  return lengthRes->getInt();
 }
 
-TorrentParser::exp_files TorrentParser::parseMultiple(b_dict info) {
-  if (!info.at("files").isList())
+TorrentParser::exp_files TorrentParser::parseMultiple(BNode info) {
+  auto filesRes = info.dictFindList("files");
+  if (!filesRes)
     return std::unexpected(error_code::filesFieldNotListErr);
 
   std::vector<FileInfo> files;
-  auto fileList = info.at("files").getList();
 
-  for (auto file : fileList) {
+  for (auto file : filesRes->getList()) {
     if (!file.isDict())
       return std::unexpected(error_code::filesFieldItemNotDictErr);
-    auto fileInfoRes = parseFile(file.getDict());
+    auto fileInfoRes = parseFile(file);
     if (!fileInfoRes)
       return std::unexpected(fileInfoRes.error());
     files.push_back(*fileInfoRes);
@@ -190,7 +188,7 @@ TorrentParser::exp_files TorrentParser::parseMultiple(b_dict info) {
   return files;
 }
 
-TorrentParser::exp_fileinfo TorrentParser::parseFile(b_dict file) {
+TorrentParser::exp_fileinfo TorrentParser::parseFile(BNode file) {
   auto fileLenghtRes = parseFileLength(file);
   auto filePathRes = parseFilePath(file);
 
@@ -201,27 +199,24 @@ TorrentParser::exp_fileinfo TorrentParser::parseFile(b_dict file) {
   return FileInfo{*fileLenghtRes, *filePathRes};
 }
 
-TorrentParser::exp_sizet TorrentParser::parseFileLength(b_dict file) {
-  if (!file.contains("length"))
+TorrentParser::exp_sizet TorrentParser::parseFileLength(BNode file) {
+  auto lengthRes = file.dictFindInt("length");
+  if (!lengthRes)
     return std::unexpected(error_code::missingFileLengthErr);
-  if (!file.at("length").isInt())
-    return std::unexpected(error_code::fileLengthNotIntErr);
-  if (file.at("length").getInt() < 0)
+  if (lengthRes->getInt() < 0)
     return std::unexpected(error_code::multiLengthNegativeErr);
-  if (file.at("length").getInt() == 0)
+  if (lengthRes->getInt() == 0)
     return std::unexpected(error_code::multiLengthZeroErr);
-  return file.at("length").getInt();
+  return lengthRes->getInt();
 }
 
-TorrentParser::exp_string TorrentParser::parseFilePath(b_dict file) {
-  if (!file.contains("path"))
-    return std::unexpected(error_code::missingFilePathErr);
-  if (!file.at("path").isList())
+TorrentParser::exp_string TorrentParser::parseFilePath(BNode file) {
+  auto pathRes = file.dictFindList("path");
+  if (!pathRes)
     return std::unexpected(error_code::missingFilePathErr);
 
-  auto path = file.at("path").getList();
   std::string strPath = "";
-  for (auto item : path) {
+  for (auto item : pathRes->getList()) {
     if (!item.isStr())
       return std::unexpected(error_code::filePathFragmentNotStrErr);
     strPath.append(item.getStr());
@@ -229,53 +224,46 @@ TorrentParser::exp_string TorrentParser::parseFilePath(b_dict file) {
   return strPath;
 }
 
-TorrentParser::opt_string TorrentParser::parseComment(b_dict root) {
-  if (!root.contains("comment"))
+TorrentParser::opt_string TorrentParser::parseComment(BNode root) {
+  auto commentRes = root.dictFindString("comment");
+  if (!commentRes)
     return std::nullopt;
-  if (!root.at("comment").isStr())
-    return std::nullopt;
-  return root.at("comment").getStr();
+  return commentRes->getStr();
 }
 
-TorrentParser::opt_string TorrentParser::parseCreatedBy(b_dict root) {
-  if (!root.contains("created by"))
+TorrentParser::opt_string TorrentParser::parseCreatedBy(BNode root) {
+  auto createdBy = root.dictFindString("created by");
+  if (!createdBy)
     return std::nullopt;
-  if (!root.at("created by").isStr())
-    return std::nullopt;
-  return root.at("created by").getStr();
+  return createdBy->getStr();
 }
 
-TorrentParser::opt_string TorrentParser::parseEncoding(b_dict root) {
-  if (!root.contains("encoding"))
+TorrentParser::opt_string TorrentParser::parseEncoding(BNode root) {
+  auto encoding = root.dictFindString("encoding");
+  if (!encoding)
     return std::nullopt;
-  if (!root.at("encoding").isStr())
-    return std::nullopt;
-  return root.at("encoding").getStr();
+  return encoding->getStr();
 }
 
-TorrentParser::opt_date TorrentParser::parseCreationDate(b_dict root) {
-  if (!root.contains("creation date"))
-    return std::nullopt;
-  if (!root.at("creation date").isInt())
+TorrentParser::opt_date TorrentParser::parseCreationDate(BNode root) {
+  auto creationDate = root.dictFindInt("creation date");
+  if (!creationDate)
     return std::nullopt;
 
   auto tp = std::chrono::system_clock::time_point{
-      std::chrono::seconds{root.at("creation date").getInt()}};
+      std::chrono::seconds{creationDate->getInt()}};
   auto days = std::chrono::floor<std::chrono::days>(tp);
   return std::chrono::year_month_day{days};
 }
 
-TorrentParser::opt_stringlist TorrentParser::parseAnnounceList(b_dict root) {
-  if (!root.contains("announce-list"))
-    return std::nullopt;
-  if (!root.at("announce-list").isList())
+TorrentParser::opt_stringlist TorrentParser::parseAnnounceList(BNode root) {
+  auto announceListRes = root.dictFindList("announce-list");
+  if (!announceListRes)
     return std::nullopt;
 
   std::vector<std::string> trackers;
 
-  auto topLevelList = root.at("announce-list").getList();
-
-  for (auto &list : topLevelList) {
+  for (auto &list : announceListRes->getList()) {
     if (!list.isList())
       return std::nullopt;
     for (auto &tracker : list.getList()) {

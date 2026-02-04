@@ -1,5 +1,3 @@
-#include "Bencode/bencodeValue.h"
-#include "error_codes.h"
 #include <Bencode/bencodeDecoder.h>
 #include <Net/httpConnection.h>
 #include <Torrent/peer.h>
@@ -119,48 +117,40 @@ TrackerResponse::parseAnnounceHttp(const std::span<char const> &resp) {
   if (!(nodeRes && nodeRes->isDict()))
     return std::unexpected(error_code::invalidTrackerResponseErr);
 
-  b_dict root = nodeRes.value().getDict();
+  BNode interval = nodeRes->dictFindInt("interval", 1800);
+  BNode minInterval = nodeRes->dictFindInt("min interval", 30);
 
-  if (!(root.contains("interval") && root.at("interval").isInt()))
-    return std::unexpected(error_code::invalidTrackerResponseErr);
-  if (!(root.contains("complete") && root.at("complete").isInt()))
-    return std::unexpected(error_code::invalidTrackerResponseErr);
-  if (!(root.contains("incomplete") && root.at("incomplete").isInt()))
-    return std::unexpected(error_code::invalidTrackerResponseErr);
-  if (!(root.contains("peers") && root.at("peers").isStr()) &&
-      !(root.contains("peers") && root.at("peers").isDict()))
-    return std::unexpected(error_code::invalidTrackerResponseErr);
-
-  trackerResp.interval = root.at("interval").getInt();
-  trackerResp.complete = root.at("complete").getInt();
-  trackerResp.incomplete = root.at("incomplete").getInt();
-  trackerResp.minInterval =
-      (root.contains("min interval") && root.at("min interval").isInt())
-          ? root.at("min interval").getInt()
-          : 0;
-  trackerResp.trackerID =
-      (root.contains("tracker id") && root.at("tracker id").isStr())
-          ? root.at("tracker id").getStr()
-          : "";
-  trackerResp.warning =
-      (root.contains("warning reason") && root.at("warning reason").isStr())
-          ? root.at("warning reason").getStr()
-          : "";
-
-  if (root.contains("peers") && root.at("peers").isStr()) {
-    auto peerRes = TrackerResponse::parseCompactPeersHttp(root);
-    if (!peerRes)
-      return std::unexpected(error_code::invalidTrackerResponseErr);
-    trackerResp.peerList = std::move(peerRes.value());
-
-  } else if (root.contains("peers") && root.at("peers").isList()) {
-    auto peerRes = TrackerResponse::parsePeersHttp(root);
-    if (!peerRes)
-      return std::unexpected(error_code::invalidTrackerResponseErr);
-    trackerResp.peerList = std::move(peerRes.value());
-  } else {
-    return std::unexpected(error_code::invalidTrackerResponseErr);
+  BNode failure = nodeRes->dictFindString("failure reason", "");
+  if (!failure.getStr().empty()) {
+    trackerResp.failure = failure.getStr();
+    return trackerResp;
   }
+
+  BNode trackerID = nodeRes->dictFindString("tracker id", "");
+  BNode complete = nodeRes->dictFindInt("complete", -1);
+  BNode incomplete = nodeRes->dictFindInt("incomplete", -1);
+  BNode warning = nodeRes->dictFindString("warning reason", "");
+
+  BNode peerList;
+  BNode peerCompactList = nodeRes->dictFindString("peers", "");
+  auto peerListRes = nodeRes->dictFindDict("peers");
+  if (peerListRes)
+    peerList = peerListRes.value();
+
+  trackerResp.interval = interval.getInt();
+  trackerResp.minInterval = minInterval.getInt();
+  trackerResp.trackerID = trackerID.getStr();
+  trackerResp.complete = complete.getInt();
+  trackerResp.incomplete = incomplete.getInt();
+  trackerResp.warning = warning.getStr();
+
+  auto peerRes = !peerCompactList.getStr().empty()
+                     ? TrackerResponse::parseCompactPeersHttp(nodeRes.value())
+                     : TrackerResponse::parsePeersHttp(nodeRes.value());
+  if (!peerRes)
+    return std::unexpected(error_code::invalidTrackerResponseErr);
+  trackerResp.peerList = std::move(peerRes.value());
+
   return trackerResp;
 }
 
@@ -174,31 +164,31 @@ TrackerResponse::parseScrapeHttp(const std::span<char const> &resp,
 
   if (!(nodeRes && nodeRes->isDict()))
     return std::unexpected(error_code::invalidTrackerResponseErr);
-  b_dict root = nodeRes.value().getDict();
-  if (!(root.contains("files") && root.at("files").isDict()))
-    return std::unexpected(error_code::invalidTrackerResponseErr);
-  b_dict files = root.at("files").getDict();
-  if (!(files.contains(infohash) && files.at(infohash).isDict()))
-    return std::unexpected(error_code::invalidTrackerResponseErr);
-  b_dict file = files.at(infohash).getDict();
 
-  if (!(file.contains("complete") && file.at("complete").isInt()))
+  auto filesRes = nodeRes->dictFindDict("files");
+  if (!filesRes)
     return std::unexpected(error_code::invalidTrackerResponseErr);
-  if (!(file.contains("incomplete") && file.at("incomplete").isInt()))
-    return std::unexpected(error_code::invalidTrackerResponseErr);
-  if (!(file.contains("downloaded") && file.at("downloaded").isInt()))
+  auto fileRes = filesRes->dictFindDict(infohash);
+  if (!fileRes)
     return std::unexpected(error_code::invalidTrackerResponseErr);
 
-  trackerResp.complete = file.at("complete").getInt();
-  trackerResp.incomplete = file.at("incomplete").getInt();
-  trackerResp.downloaded = file.at("downloaded").getInt();
+  auto completeRes = fileRes->dictFindInt("complete");
+  auto incompleteRes = fileRes->dictFindInt("incomplete");
+  auto downloadedRes = fileRes->dictFindInt("downloaded");
+
+  if (!completeRes || !incompleteRes || !downloadedRes)
+    return std::unexpected(error_code::invalidTrackerResponseErr);
+
+  trackerResp.complete = completeRes->getInt();
+  trackerResp.incomplete = incompleteRes->getInt();
+  trackerResp.downloaded = downloadedRes->getInt();
 
   return trackerResp;
 }
 
-TrackerResponse::opt_peers TrackerResponse::parseCompactPeersHttp(b_dict root) {
+TrackerResponse::opt_peers TrackerResponse::parseCompactPeersHttp(BNode root) {
   std::vector<Peer> peerList;
-  std::string_view peersView = root.at("peers").getStr();
+  std::string_view peersView = root.dictFindString("peers", "").getStr();
 
   while (peersView.size() != 0) {
     std::string_view peerView = peersView.substr(0, 6);
@@ -223,25 +213,24 @@ TrackerResponse::opt_peers TrackerResponse::parseCompactPeersHttp(b_dict root) {
   return peerList;
 }
 
-TrackerResponse::opt_peers TrackerResponse::parsePeersHttp(b_dict root) {
+TrackerResponse::opt_peers TrackerResponse::parsePeersHttp(BNode root) {
   std::vector<Peer> peerList;
-  b_list peers = root.at("peers").getList();
-  for (auto node : peers) {
+  auto peersRes = root.dictFindList("peers");
+  for (auto node : peersRes->getList()) {
     Peer peer{};
 
     if (!node.isDict())
       return std::nullopt;
-    b_dict peerNode = node.getDict();
-    if (!(peerNode.contains("peer id") && peerNode.at("peer id").isStr()))
-      return std::nullopt;
-    if (!(peerNode.contains("ip") && peerNode.at("ip").isStr()))
-      return std::nullopt;
-    if (!(peerNode.contains("port") && peerNode.at("port").isInt()))
+
+    auto pIDRes = node.dictFindString("peer id");
+    auto ipRes = node.dictFindString("ip");
+    auto portRes = node.dictFindInt("port");
+    if (!pIDRes || ipRes || portRes)
       return std::nullopt;
 
-    peer.pID = peerNode.at("peer id").getStr();
-    peer.ip = peerNode.at("ip").getStr();
-    peer.port = peerNode.at("port").getInt();
+    peer.pID = pIDRes->getStr();
+    peer.ip = ipRes->getStr();
+    peer.port = portRes->getInt();
 
     peerList.push_back(peer);
   }

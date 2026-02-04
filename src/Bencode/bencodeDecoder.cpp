@@ -38,33 +38,33 @@ BencodeDecoder::internal_decode(std::string_view *input) {
   case '-': {
     auto result = decode_str(input);
     depth--;
-    return result.has_value() ? std::expected<BenNode, std::error_code>(
-                                    BenNode(result.value()))
-                              : std::unexpected(result.error());
+    return result.has_value()
+               ? std::expected<BNode, std::error_code>(BNode(result.value()))
+               : std::unexpected(result.error());
   }
 
   case 'i': {
     auto result = decode_int(input);
     depth--;
-    return result.has_value() ? std::expected<BenNode, std::error_code>(
-                                    BenNode(result.value()))
-                              : std::unexpected(result.error());
+    return result.has_value()
+               ? std::expected<BNode, std::error_code>(BNode(result.value()))
+               : std::unexpected(result.error());
   }
 
   case 'l': {
     auto result = decode_list(input);
     depth--;
-    return result.has_value() ? std::expected<BenNode, std::error_code>(
-                                    BenNode(result.value()))
-                              : std::unexpected(result.error());
+    return result.has_value()
+               ? std::expected<BNode, std::error_code>(BNode(result.value()))
+               : std::unexpected(result.error());
   }
 
   case 'd': {
     auto result = decode_dict(input);
     depth--;
-    return result.has_value() ? std::expected<BenNode, std::error_code>(
-                                    BenNode(result.value()))
-                              : std::unexpected(result.error());
+    return result.has_value()
+               ? std::expected<BNode, std::error_code>(BNode(result.value()))
+               : std::unexpected(result.error());
   }
   }
 
@@ -73,7 +73,7 @@ BencodeDecoder::internal_decode(std::string_view *input) {
 }
 
 BencodeDecoder::exp_int BencodeDecoder::decode_int(std::string_view *input) {
-  b_int int_;
+  BNode::int_t int_;
   input->remove_prefix(1);
   auto int_end = isIntegerValid(*input);
   if (!int_end)
@@ -95,7 +95,7 @@ BencodeDecoder::exp_int BencodeDecoder::decode_int(std::string_view *input) {
 }
 
 BencodeDecoder::exp_str BencodeDecoder::decode_str(std::string_view *input) {
-  b_string str;
+  BNode::string_t str;
   std::size_t str_len;
   auto len_end = isStringValid(*input);
   if (!len_end)
@@ -122,7 +122,7 @@ BencodeDecoder::exp_str BencodeDecoder::decode_str(std::string_view *input) {
 }
 
 BencodeDecoder::exp_list BencodeDecoder::decode_list(std::string_view *input) {
-  b_list list;
+  BNode::list_t list;
   input->remove_prefix(1);
 
   for (;;) {
@@ -143,7 +143,7 @@ BencodeDecoder::exp_list BencodeDecoder::decode_list(std::string_view *input) {
 }
 
 BencodeDecoder::exp_dict BencodeDecoder::decode_dict(std::string_view *input) {
-  b_dict dict;
+  BNode::dict_t dict;
   input->remove_prefix(1);
 
   for (;;) {

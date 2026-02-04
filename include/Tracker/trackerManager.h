@@ -62,7 +62,6 @@ private:
   using http_resp = http::response<http::dynamic_body>;
   using exp_tracker_resp = std::expected<TrackerResponse, std::error_code>;
   using opt_peers = std::optional<std::vector<Peer>>;
-  using opt_bdict = std::optional<b_dict>;
 
 public:
   const std::string &getFailure() const { return failure; }
@@ -88,8 +87,8 @@ private:
   std::uint64_t downloaded = 0;
   std::vector<Peer> peerList;
 
-  static opt_peers parseCompactPeersHttp(b_dict root);
-  static opt_peers parsePeersHttp(b_dict root);
+  static opt_peers parseCompactPeersHttp(BNode root);
+  static opt_peers parsePeersHttp(BNode root);
 
   static exp_tracker_resp parseAnnounceHttp(const std::span<char const> &resp);
   static exp_tracker_resp parseScrapeHttp(const std::span<char const> &resp,

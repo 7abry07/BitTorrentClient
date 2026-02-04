@@ -13,11 +13,11 @@ class Error;
 class BencodeDecoder {
 
 private:
-  using exp_int = std::expected<b_int, std::error_code>;
-  using exp_str = std::expected<b_string, std::error_code>;
-  using exp_list = std::expected<b_list, std::error_code>;
-  using exp_dict = std::expected<b_dict, std::error_code>;
-  using exp_node = std::expected<BenNode, std::error_code>;
+  using exp_int = std::expected<BNode::int_t, std::error_code>;
+  using exp_str = std::expected<BNode::string_t, std::error_code>;
+  using exp_list = std::expected<BNode::list_t, std::error_code>;
+  using exp_dict = std::expected<BNode::dict_t, std::error_code>;
+  using exp_node = std::expected<BNode, std::error_code>;
   using exp_sizet = std::expected<std::size_t, std::error_code>;
 
 public:

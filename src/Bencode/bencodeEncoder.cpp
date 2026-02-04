@@ -6,7 +6,7 @@
 
 namespace btc {
 
-std::string BencodeEncoder::encode(BenNode val) {
+std::string BencodeEncoder::encode(BNode val) {
   std::string result = "";
 
   if (val.isInt())
@@ -21,15 +21,15 @@ std::string BencodeEncoder::encode(BenNode val) {
   return result;
 }
 
-std::string BencodeEncoder::encode_int(b_int val) {
+std::string BencodeEncoder::encode_int(BNode::int_t val) {
   return std::format("i{}e", val);
 }
 
-std::string BencodeEncoder::encode_str(b_string val) {
+std::string BencodeEncoder::encode_str(BNode::string_t val) {
   return std::format("{}:{}", val.length(), val);
 }
 
-std::string BencodeEncoder::encode_list(b_list val) {
+std::string BencodeEncoder::encode_list(BNode::list_t val) {
   std::string result = "l";
   for (auto items : val)
     result.append(encode(items));
@@ -37,7 +37,7 @@ std::string BencodeEncoder::encode_list(b_list val) {
   return result;
 }
 
-std::string BencodeEncoder::encode_dict(b_dict val) {
+std::string BencodeEncoder::encode_dict(BNode::dict_t val) {
   std::string result = "d";
   for (auto [first, second] : val) {
     result.append(encode_str(first));
