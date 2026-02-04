@@ -93,10 +93,6 @@ void TrackerManager::appendQuery(std::string &q, std::string k,
   appendQuery(q, k, std::to_string(v));
 }
 
-// ----------------------------------------------
-// TRACKER RESPONSE
-// ----------------------------------------------
-
 TrackerResponse::exp_tracker_resp
 TrackerManager::parseAnnounceHttp(const std::span<char const> &resp) {
   BencodeDecoder decoder;
@@ -195,7 +191,7 @@ TrackerManager::opt_peers TrackerManager::parseCompactPeersHttp(BNode root) {
 
     Peer peer{};
     peer.ip = std::format("{}.{}.{}.{}", ip[3], ip[2], ip[1], ip[0]);
-    peer.port = port_t(port[0]) | port_t(port[1]) << 8;
+    peer.port = port_t(port[1]) | port_t(port[0]) << 8;
 
     peersView.remove_prefix(6);
     peerList.push_back(peer);

@@ -31,9 +31,10 @@ btc::net::awaitable<void> session(btc::net::io_context &io) {
 
   trackerRequest req{};
   req.setInfoHash(file.getInfoHash());
-  req.setKind(btc::requestKind::Scrape);
+  req.setKind(btc::requestKind::Announce);
   req.setPID("dsghbfevwevnunwp9gnw");
   req.setCompact(true);
+
   auto urlres = urls::parse_uri(file.getAnnounce());
   if (!urlres) {
     std::println("error -> {}", urlres.error().message());
@@ -49,11 +50,11 @@ btc::net::awaitable<void> session(btc::net::io_context &io) {
   else if (respRes->isWarning())
     std::println("warning -> {}", respRes->getWarning());
   else {
-    // for (auto peer : respRes->getPeerList())
-    //   std::println("{} : {}", peer.ip, peer.port);
-    std::println("{}", respRes->getComplete());
-    std::println("{}", respRes->getIncomplete());
-    std::println("{}", respRes->getDownloaded());
+    for (auto peer : respRes->getPeerList())
+      std::println("{} : {}", peer.ip, peer.port);
+    // std::println("{}", respRes->getComplete());
+    // std::println("{}", respRes->getIncomplete());
+    // std::println("{}", respRes->getDownloaded());
   }
 }
 

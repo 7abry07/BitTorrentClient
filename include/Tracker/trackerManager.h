@@ -86,14 +86,6 @@ private:
   std::uint64_t incomplete = 0;
   std::uint64_t downloaded = 0;
   std::vector<Peer> peerList;
-  //
-  // static opt_peers parseCompactPeersHttp(BNode root);
-  // static opt_peers parsePeersHttp(BNode root);
-  //
-  // static exp_tracker_resp parseAnnounceHttp(const std::span<char const>
-  // &resp); static exp_tracker_resp parseScrapeHttp(const std::span<char const>
-  // &resp,
-  //                                         std::string infohash);
 };
 
 class TrackerManager {
