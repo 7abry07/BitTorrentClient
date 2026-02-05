@@ -31,7 +31,7 @@ btc::net::awaitable<void> session(btc::net::io_context &io) {
 
   trackerRequest req{};
   req.setInfoHash(file.getInfoHash());
-  req.setKind(btc::requestKind::Announce);
+  req.setKind(btc::requestKind::announce);
   req.setPID("dsghbfevwevnunwp9gnw");
   req.setCompact(true);
 
@@ -51,10 +51,10 @@ btc::net::awaitable<void> session(btc::net::io_context &io) {
     std::println("warning -> {}", respRes->getWarning());
   else {
     for (auto peer : respRes->getPeerList())
-      std::println("{} : {}", peer.ip, peer.port);
-    // std::println("{}", respRes->getComplete());
-    // std::println("{}", respRes->getIncomplete());
-    // std::println("{}", respRes->getDownloaded());
+      std::println("<{}> : [{}]", peer.ip, peer.port);
+    std::println("{}", respRes->getComplete());
+    std::println("{}", respRes->getIncomplete());
+    std::println("{}", respRes->getDownloaded());
   }
 }
 

@@ -16,8 +16,8 @@ class TrackerManager;
 class TrackerResponse;
 class TrackerRequest;
 
-enum class eventType { None = 0, Completed, Started, Stopped };
-enum class requestKind { Announce = 0, Scrape };
+enum class eventType { none = 0, completed, started, stopped };
+enum class requestKind { announce = 0, scrape };
 
 class TrackerRequest {
   friend TrackerManager;
@@ -36,7 +36,7 @@ private:
   std::uint16_t port = 0;
   bool no_pID = false;
   bool compact = true;
-  eventType event = eventType::None;
+  eventType event = eventType::none;
   requestKind kind;
 
 public:
@@ -107,9 +107,8 @@ private:
   static opt_peers parseCompactPeersHttp(BNode root);
   static opt_peers parsePeersHttp(BNode root);
 
-  static exp_tracker_resp parseAnnounceHttp(const std::span<char const> &resp);
-  static exp_tracker_resp parseScrapeHttp(const std::span<char const> &resp,
-                                          std::string infohash);
+  static exp_tracker_resp parseHttp(const std::span<char const> &resp,
+                                    TrackerRequest &req);
 
   void appendQuery(std::string &q, std::string k, std::string v);
   void appendQuery(std::string &q, std::string k, std::int64_t v);

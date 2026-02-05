@@ -36,6 +36,7 @@ public:
   BNode dictFindInt(std::string k, int_t def);
   BNode dictFindString(std::string k, string_t def);
 
+  std::optional<BNode> dictFind(std::string k);
   std::optional<BNode> dictFindInt(std::string k);
   std::optional<BNode> dictFindString(std::string k);
   std::optional<BNode> dictFindList(std::string k);

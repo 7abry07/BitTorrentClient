@@ -1,3 +1,4 @@
+#include "error_codes.h"
 #include <Bencode/bencodeDecoder.h>
 #include <Net/httpConnection.h>
 #include <Torrent/peer.h>
@@ -39,7 +40,7 @@ TrackerManager::httpSend(TrackerRequest req) {
   urls::url url = req.url;
   std::string q = "";
 
-  if (req.kind == requestKind::Announce) {
+  if (req.kind == requestKind::announce) {
     std::array<std::string, 4> eventStr{"none", "completed", "started",
                                         "stopped"};
     appendQuery(q, "info_hash", req.infoHash);
@@ -73,11 +74,7 @@ TrackerManager::httpSend(TrackerRequest req) {
     co_return std::unexpected(httpResp.error());
 
   auto resp =
-      req.kind == requestKind::Announce
-          ? parseAnnounceHttp(
-                beast::buffers_to_string(httpResp->body().cdata()))
-          : parseScrapeHttp(beast::buffers_to_string(httpResp->body().cdata()),
-                            req.infoHash);
+      parseHttp(beast::buffers_to_string(httpResp->body().cdata()), req);
   if (!resp)
     co_return std::unexpected(resp.error());
   if (resp->trackerID != "")
@@ -93,8 +90,9 @@ void TrackerManager::appendQuery(std::string &q, std::string k,
   appendQuery(q, k, std::to_string(v));
 }
 
-TrackerResponse::exp_tracker_resp
-TrackerManager::parseAnnounceHttp(const std::span<char const> &resp) {
+TrackerManager::exp_tracker_resp
+TrackerManager::parseHttp(const std::span<char const> &resp,
+                          TrackerRequest &req) {
   BencodeDecoder decoder;
   TrackerResponse trackerResp;
 
@@ -103,72 +101,44 @@ TrackerManager::parseAnnounceHttp(const std::span<char const> &resp) {
   if (!(nodeRes && nodeRes->isDict()))
     return std::unexpected(error_code::invalidTrackerResponseErr);
 
-  BNode interval = nodeRes->dictFindInt("interval", 1800);
-  BNode minInterval = nodeRes->dictFindInt("min interval", 30);
+  trackerResp.interval = nodeRes->dictFindInt("interval", 1800).getInt();
+  trackerResp.minInterval = nodeRes->dictFindInt("min interval", 30).getInt();
+  trackerResp.trackerID = nodeRes->dictFindString("tracker id", "").getStr();
+  trackerResp.warning = nodeRes->dictFindString("warning reason", "").getStr();
+  trackerResp.failure = nodeRes->dictFindString("failure reason", "").getStr();
+  if (!trackerResp.failure.empty())
+    return trackerResp;
 
-  BNode failure = nodeRes->dictFindString("failure reason", "");
-  if (!failure.getStr().empty()) {
-    trackerResp.failure = failure.getStr();
+  if (req.kind == requestKind::scrape) {
+    auto filesRes = nodeRes->dictFindDict("files");
+    if (!filesRes)
+      return std::unexpected(error_code::invalidTrackerResponseErr);
+    auto fileRes = filesRes->dictFindDict(req.infoHash);
+    if (!fileRes)
+      return std::unexpected(error_code::invalidTrackerResponseErr);
+
+    trackerResp.complete = fileRes->dictFindInt("complete", -1).getInt();
+    trackerResp.incomplete = fileRes->dictFindInt("incomplete", -1).getInt();
+    trackerResp.downloaded = fileRes->dictFindInt("downloaded", -1).getInt();
+
     return trackerResp;
   }
 
-  BNode trackerID = nodeRes->dictFindString("tracker id", "");
-  BNode complete = nodeRes->dictFindInt("complete", -1);
-  BNode incomplete = nodeRes->dictFindInt("incomplete", -1);
-  BNode warning = nodeRes->dictFindString("warning reason", "");
+  trackerResp.complete = nodeRes->dictFindInt("complete", -1).getInt();
+  trackerResp.incomplete = nodeRes->dictFindInt("incomplete", -1).getInt();
+  trackerResp.downloaded = nodeRes->dictFindInt("downloaded", -1).getInt();
 
-  BNode peerList;
-  BNode peerCompactList = nodeRes->dictFindString("peers", "");
-  auto peerListRes = nodeRes->dictFindDict("peers");
-  if (peerListRes)
-    peerList = peerListRes.value();
-
-  trackerResp.interval = interval.getInt();
-  trackerResp.minInterval = minInterval.getInt();
-  trackerResp.trackerID = trackerID.getStr();
-  trackerResp.complete = complete.getInt();
-  trackerResp.incomplete = incomplete.getInt();
-  trackerResp.warning = warning.getStr();
-
-  auto peerRes = !peerCompactList.getStr().empty()
-                     ? parseCompactPeersHttp(nodeRes.value())
-                     : parsePeersHttp(nodeRes.value());
-  if (!peerRes)
+  auto peerNodeRes = nodeRes->dictFind("peers");
+  if (peerNodeRes && peerNodeRes->isStr()) {
+    auto peerRes = parseCompactPeersHttp(nodeRes.value());
+    if (peerRes)
+      trackerResp.peerList = peerRes.value();
+  } else if (peerNodeRes && peerNodeRes->isDict()) {
+    auto peerRes = parsePeersHttp(nodeRes.value());
+    if (peerRes)
+      trackerResp.peerList = peerRes.value();
+  } else
     return std::unexpected(error_code::invalidTrackerResponseErr);
-  trackerResp.peerList = std::move(peerRes.value());
-
-  return trackerResp;
-}
-
-TrackerManager::exp_tracker_resp
-TrackerManager::parseScrapeHttp(const std::span<char const> &resp,
-                                std::string infohash) {
-  BencodeDecoder decoder;
-  TrackerResponse trackerResp;
-
-  auto nodeRes = decoder.decode(beast::buffers_to_string(resp));
-
-  if (!(nodeRes && nodeRes->isDict()))
-    return std::unexpected(error_code::invalidTrackerResponseErr);
-
-  auto filesRes = nodeRes->dictFindDict("files");
-  if (!filesRes)
-    return std::unexpected(error_code::invalidTrackerResponseErr);
-  auto fileRes = filesRes->dictFindDict(infohash);
-  if (!fileRes)
-    return std::unexpected(error_code::invalidTrackerResponseErr);
-
-  auto completeRes = fileRes->dictFindInt("complete");
-  auto incompleteRes = fileRes->dictFindInt("incomplete");
-  auto downloadedRes = fileRes->dictFindInt("downloaded");
-
-  if (!completeRes || !incompleteRes || !downloadedRes)
-    return std::unexpected(error_code::invalidTrackerResponseErr);
-
-  trackerResp.complete = completeRes->getInt();
-  trackerResp.incomplete = incompleteRes->getInt();
-  trackerResp.downloaded = downloadedRes->getInt();
-
   return trackerResp;
 }
 

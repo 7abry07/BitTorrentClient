@@ -15,6 +15,12 @@ BNode::string_t &BNode::getStr() { return std::get<string_t>(this->val); }
 BNode::list_t &BNode::getList() { return std::get<list_t>(this->val); }
 BNode::dict_t &BNode::getDict() { return std::get<dict_t>(this->val); }
 
+std::optional<BNode> BNode::dictFind(std::string k) {
+  BNode::dict_t node = getDict();
+  return node.contains(k) ? std::optional<BNode>(BNode(node.at(k)))
+                          : std::nullopt;
+}
+
 BNode BNode::dictFindInt(std::string k, BNode::int_t def) {
   BNode::dict_t node = getDict();
   return node.contains(k) && node.at(k).isInt() ? BNode(node.at(k).getInt())
